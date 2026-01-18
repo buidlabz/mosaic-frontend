@@ -19,16 +19,16 @@ export function Footer() {
              <div>
                 <h4 className="font-bold text-white mb-4">Platform</h4>
                 <ul className="space-y-2 text-zinc-500">
-                   <li><Link href="#" className="hover:text-[#00FF00]">Credit Scoring</Link></li>
-                   <li><Link href="#" className="hover:text-[#00FF00]">Swap Engine</Link></li>
-                   <li><Link href="#" className="hover:text-[#00FF00]">API Access</Link></li>
+                   <li><Link href="#features" className="hover:text-[#00FF00]">Credit Scoring</Link></li>
+                   <li><Link href="#features" className="hover:text-[#00FF00]">Swap Engine</Link></li>
+                   <li><Link href="/login/institution" className="hover:text-[#00FF00]">API Access</Link></li>
                 </ul>
              </div>
 
              <div>
                 <h4 className="font-bold text-white mb-4">Company</h4>
                 <ul className="space-y-2 text-zinc-500">
-                   <li><Link href="#" className="hover:text-[#00FF00]">About Us</Link></li>
+                   <li><Link href="#about" className="hover:text-[#00FF00]">About Us</Link></li>
                    <li><Link href="#" className="hover:text-[#00FF00]">Careers</Link></li>
                    <li><Link href="#" className="hover:text-[#00FF00]">Contact</Link></li>
                 </ul>

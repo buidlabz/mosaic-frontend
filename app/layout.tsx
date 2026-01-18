@@ -23,7 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={` ${nunitoSans.className} font-sans antialiased`}
+        className={` ${nunitoSans.className} dark font-sans antialiased`}
       >
         {children}
       </body>

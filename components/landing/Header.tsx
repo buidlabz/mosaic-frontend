@@ -15,18 +15,20 @@ export function Header() {
 
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-300">
           <Link href="#overview" className="hover:text-[#00FF00] transition-colors">Overview</Link>
-          <Link href="#solutions" className="hover:text-[#00FF00] transition-colors">Solutions</Link>
+          <Link href="#features" className="hover:text-[#00FF00] transition-colors">Features</Link>
           <Link href="#services" className="hover:text-[#00FF00] transition-colors">Services</Link>
-          <Link href="#Institutions" className="hover:text-[#00FF00] transition-colors">Institutions</Link>
+          <Link href="/login/institution" className="hover:text-[#00FF00] transition-colors">Institutions</Link>
         </nav>
 
         <div className="flex items-center gap-4">
-          <Link href="#" className="hidden md:block text-sm font-medium text-white hover:text-[#00FF00]">
+          <Link href="/login/user" className="hidden md:block text-sm font-medium text-white hover:text-[#00FF00]">
             Sign In
           </Link>
-          <Button className="bg-[#00FF00] text-black hover:bg-[#00DD00] font-semibold rounded-full px-6">
-            Get Started
-          </Button>
+          <Link href="/signup">
+            <Button className="bg-[#00FF00] text-black hover:bg-[#00DD00] font-semibold rounded-full px-6">
+              Get Started
+            </Button>
+          </Link>
           
           {/* Mobile Menu */}
           <div className="md:hidden">
@@ -39,10 +41,11 @@ export function Header() {
               <SheetContent side="right" className="bg-zinc-950 border-zinc-800 text-white pl-4">
                 <nav className="flex flex-col gap-6 mt-10">
                   <Link href="#overview" className="text-lg font-medium hover:text-[#00FF00]">Overview</Link>
-                  <Link href="#solutions" className="text-lg font-medium hover:text-[#00FF00]">Solutions</Link>
+                  <Link href="#features" className="text-lg font-medium hover:text-[#00FF00]">Features</Link>
                   <Link href="#services" className="text-lg font-medium hover:text-[#00FF00]">Services</Link>
-                  <Link href="#Institutions" className="text-lg font-medium hover:text-[#00FF00]">Institutions</Link>
-                  <Link href="#" className="text-lg font-medium hover:text-[#00FF00]">Sign In</Link>
+                  <Link href="/login/institution" className="text-lg font-medium hover:text-[#00FF00]">Institutions</Link>
+                  <Link href="/login/user" className="text-lg font-medium hover:text-[#00FF00]">Sign In</Link>
+                  <Link href="/signup" className="text-lg font-medium hover:text-[#00FF00]">Get Started</Link>
                 </nav>
               </SheetContent>
             </Sheet>

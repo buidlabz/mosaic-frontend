@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { 
@@ -32,12 +33,16 @@ export function Hero() {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
-            <Button className="h-12 px-8 bg-white text-black hover:bg-zinc-200 rounded-full font-semibold flex items-center gap-2">
-              <IconCreditCard className="w-5 h-5" /> Get Credit Score
-            </Button>
-            <Button variant="outline" className="h-12 px-8 border-zinc-700 bg-black text-white hover:bg-zinc-900 hover:text-[#00FF00] rounded-full font-semibold flex items-center gap-2">
-              <IconInfoCircleFilled className="w-5 h-5" /> Learn More
-            </Button>
+            <Link href="/signup">
+              <Button className="h-12 px-8 bg-white text-black hover:bg-zinc-200 rounded-full font-semibold flex items-center gap-2">
+                <IconCreditCard className="w-5 h-5" /> Get Credit Score
+              </Button>
+            </Link>
+            <Link href="#how-it-works">
+              <Button variant="outline" className="h-12 px-8 border-zinc-700 bg-black text-white hover:bg-zinc-900 hover:text-[#00FF00] rounded-full font-semibold flex items-center gap-2">
+                <IconInfoCircleFilled className="w-5 h-5" /> Learn More
+              </Button>
+            </Link>
           </div>
 
           <div className="pt-8 flex items-center justify-center md:justify-start gap-6 grayscale opacity-60">
