@@ -1,0 +1,2697 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Mosaic API",
+    "version": "v1.0.0",
+    "description": "\n# Mosaic API Documentation\n\nWelcome to the Mosaic API. This platform provides credit scoring infrastructure for the DeFi ecosystem, connecting Users (Clients) with Institutions.\n\n## 🚀 User Journeys\n\n### 1. **Public / Authentication**\n- **Sign Up**: Users can sign up as a **Client** or register an **Institution**.\n  - *Note*: New accounts are automatically assigned a **Free Plan**.\n- **Login**: Standard email/password login returns a session and cookies.\n\n### 2. **Client (User) Journey**\n*Users who want to track their DeFi credit score.*\n1.  **Connect Wallet**: Link one or more crypto wallets to your profile.\n2.  **View Credit Score**: Get a calculated score based on wallet history and behavior.\n3.  **Manage Access**: Approve or reject requests from Institutions wanting to view your financial data.\n4.  **Manage Subscription**: View current plan (Free/Pro) and upgrade for higher limits (e.g., more wallets).\n\n### 3. **Institution Journey**\n*Entities that want to query credit scores and access user data.*\n1.  **Onboarding**: Register as an Institution (Status: *Pending*).\n2.  **API Key Management**: Generate secure API keys to interact with the Mosaic API programmatically.\n3.  **Manage Subscription**: View current plan (Free/Pro) and upgrade for higher limits (e.g., more wallets).\n4.  **Access Requests**: Request permission to view a Client's wallet/score data by email.\n5.  **Ad-Hoc Scoring**: Query the credit score of *any* wallet address on supported chains (deducts API credits).\n6.  **Analytics**: Monitor API usage and remaining credits.\n\n### 4. **Admin Journey**\n*Platform administrators.*\n1.  **Institution Approval**: Review and approve/reject pending institution registrations.\n2.  **Plan Management**: Create, update, and delete subscription plans (User/Institution) and configure limits.\n3.  **User Management**: View all users and institutions on the platform.\n",
+    "license": {
+      "name": "Copyright 2026 Mosaic"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://mosaic.101software.site"
+    }
+  ],
+  "paths": {
+    "/api/v1/admin/analytics": {
+      "get": {
+        "summary": "Get admin analytics (Admin)",
+        "description": "Retrieves platform-wide analytics for administrators.\n\n- **Admin Only**: Restricted to users with the Admin role.\n- **Metrics**: Total users, institutions, wallets, and API call stats.\n- **Filtering**: Supports date range filtering via `startDate` and `endDate`.\n",
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "startDate",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Filter start date (YYYY-MM-DD)"
+          },
+          {
+            "in": "query",
+            "name": "endDate",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Filter end date (YYYY-MM-DD)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Analytics retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Analytics retrieved"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AnalyticsData"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/institution/{id}/approve": {
+      "put": {
+        "summary": "Approve or reject institution",
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Institution ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateInstitutionStatusRequest",
+                "type": "object",
+                "required": [
+                  "status"
+                ],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "approved",
+                      "rejected",
+                      "deactivated"
+                    ]
+                  },
+                  "metadata": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Institution updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Institution approved"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "institution": {
+                          "$ref": "#/components/schemas/Institution"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Institution not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Manages the approval status of institution accounts.\n\n- **Admin Only**: Restricted to users with the Admin role.\n- **Actions**: Can set status to `approved`, `rejected`, or `deactivated`.\n- Can also update institution metadata.\n"
+      }
+    },
+    "/api/v1/admin/plans": {
+      "get": {
+        "summary": "List all plans (Admin)",
+        "description": "Retrieves all subscription plans. Can be filtered by type.\n- **Admin Only**.\n",
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "type",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "user",
+                "institution"
+              ]
+            },
+            "description": "Filter plans by type"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of plans",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "plans": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Plan"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new plan (Admin)",
+        "description": "Creates a new subscription plan.\n- **Admin Only**.\n",
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "type",
+                  "price"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "user",
+                      "institution"
+                    ]
+                  },
+                  "price": {
+                    "type": "number"
+                  },
+                  "walletLimit": {
+                    "type": "number",
+                    "default": 1
+                  },
+                  "apiCallLimit": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "features": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Plan created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/plans/{id}": {
+      "put": {
+        "summary": "Update a plan (Admin)",
+        "description": "Updates an existing plan.\n- **Admin Only**.\n",
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "number"
+                  },
+                  "walletLimit": {
+                    "type": "number"
+                  },
+                  "apiCallLimit": {
+                    "type": "number"
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  },
+                  "features": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Plan updated"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a plan (Admin)",
+        "description": "Deletes a plan.\n- **Admin Only**.\n- **Caution**: A plan cannot be removed if it is subscribed to by any user or institution.\n",
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plan deleted"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users": {
+      "get": {
+        "summary": "List all users (paginated) (Admin)",
+        "description": "Retrieves a comprehensive list of users across the platform.\n\n- **Admin Only**: Restricted to users with the Admin role.\n- **Features**: Pagination, role filtering, and search (name/email).\n- Returns user details excluding sensitive data like passwords.\n",
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            },
+            "description": "Number of items per page"
+          },
+          {
+            "in": "query",
+            "name": "role",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by user role"
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Search by name or email"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Users retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Users retrieved"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UserListResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/institutions": {
+      "get": {
+        "summary": "List all institutions (Admin)",
+        "description": "Retrieves a paginated list of institution profiles.\n\n- **Admin Only**: Restricted to users with the Admin role.\n- **Filtering**: Can filter by status (pending, approved, rejected, deactivated).\n- Includes user details for each institution.\n",
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            },
+            "description": "Number of items per page"
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "approved",
+                "rejected",
+                "deactivated"
+              ]
+            },
+            "description": "Filter by status"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Institutions retrieved successfully"
+          }
+        }
+      }
+    },
+    "/api/v1/client/score": {
+      "get": {
+        "summary": "Get credit scores for connected wallets (Client)",
+        "description": "Retrieves the credit scores for all wallets connected to the user's account.\n\n- **Client Only**: Restricted to users with the Client role.\n- Calculates scores based on wallet activity, balance, and history.\n- Returns a list of scores, each associated with a specific wallet.\n",
+        "tags": [
+          "Client"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Credit scores retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Scores retrieved"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "scores": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/CreditScore"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/institution/score/adhoc": {
+      "post": {
+        "summary": "Get credit score for any wallet address (Ad-hoc)",
+        "description": "Calculates a credit score for a specific wallet address on demand.\n\n- **Institution Only**: Restricted to users with the Institution role.\n- **On-the-fly**: Does not require the wallet to be connected to a user account.\n- Requires `address` and `chain` in the request body.\n- This action consumes API credits.\n",
+        "tags": [
+          "Institution"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "address",
+                  "chain"
+                ],
+                "properties": {
+                  "address": {
+                    "type": "string"
+                  },
+                  "chain": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Score calculated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "score": {
+                          "type": "number"
+                        },
+                        "breakdown": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/client/wallet": {
+      "post": {
+        "summary": "Add a blockchain wallet (Client)",
+        "description": "Connects a new blockchain wallet to the user's account.\n\n- **Client Only**: Restricted to users with the Client role.\n- **Uniqueness**: Prevents adding the same wallet address/chain combination twice.\n- Requires `address` and `chain`. `nickname` is optional.\n",
+        "tags": [
+          "Client"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddWalletRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Wallet added successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Wallet added successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "wallet": {
+                          "$ref": "#/components/schemas/Wallet"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or wallet already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "List connected wallets (Client)",
+        "description": "Retrieves all wallets connected to the authenticated user's account.\n\n- **Client Only**: Restricted to users with the Client role.\n- Returns a list of wallet objects including address, chain, and nickname.\n",
+        "tags": [
+          "Client"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Wallets retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Wallets retrieved"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "wallets": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Wallet"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/client/wallet/{id}": {
+      "delete": {
+        "summary": "Remove a wallet (Client)",
+        "description": "Disconnects a wallet from the user's account.\n\n- **Client Only**: Restricted to users with the Client role.\n- **Effect**: The wallet will no longer be tracked or scored for this user.\n- Requires the `id` of the wallet record (not the address).\n",
+        "tags": [
+          "Client"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Wallet ID to remove"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Wallet removed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Wallet removed"
+                    },
+                    "data": {
+                      "type": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Wallet not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/institution/keys": {
+      "post": {
+        "summary": "Generate a new API key (Institution)",
+        "description": "Creates a new API key for the authenticated institution.\n\n- **Institution Only**: Restricted to users with the Institution role.\n- **Output**: Returns the raw API key ONLY ONCE. It cannot be retrieved later as it is hashed in the database.\n- Requires a `name` to identify the key.\n",
+        "tags": [
+          "Institution"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateApiKeyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "API key generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "API Key generated"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "apiKey": {
+                          "type": "string",
+                          "description": "The raw API key (shown only once)"
+                        },
+                        "prefix": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "_id": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "List API keys (Institution)",
+        "description": "Retrieves all API keys generated by the institution.\n\n- **Institution Only**: Restricted to users with the Institution role.\n- Returns a list of keys with metadata (name, prefix, created/used dates, status).\n- Does NOT return the full raw key, only the prefix.\n",
+        "tags": [
+          "Institution"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of API keys retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Keys retrieved"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "keys": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/ApiKey"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/institution/keys/{id}": {
+      "delete": {
+        "summary": "Revoke an API key (Institution)",
+        "description": "Permanently revokes (deletes) an API key.\n\n- **Institution Only**: Restricted to users with the Institution role.\n- **Immediate Effect**: The key will no longer be valid for API access.\n- Requires the `id` of the key to be revoked.\n",
+        "tags": [
+          "Institution"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The key ID to revoke"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API key revoked successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "API Key revoked"
+                    },
+                    "data": {
+                      "type": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Institution not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/institution/stats": {
+      "get": {
+        "summary": "Get institution API usage stats (Institution)",
+        "description": "Retrieves usage analytics for the authenticated institution.\n\n- **Roles**: Accessible by Institution and Admin.\n- **Metrics**: Returns total calls, successful/failed counts, remaining credits, and usage by endpoint.\n",
+        "tags": [
+          "Institution"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stats retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Stats retrieved successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/InstitutionStats"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Institution not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/institution/register": {
+      "post": {
+        "summary": "Register a new institution (Institution)",
+        "description": "Onboards a new institution to the platform.\n\n- Creates a new User with Institution role.\n- Creates a corresponding Institution profile.\n- Assigns the default free plan to the institution.\n- **Status**: Initially set to `PENDING`. Requires Admin approval to access restricted features.\n",
+        "tags": [
+          "Institution"
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterInstitutionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Institution registered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Institution registered successfully. Please wait for admin approval."
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "institution": {
+                          "$ref": "#/components/schemas/Institution"
+                        },
+                        "user": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "email": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request or user already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/institution/profile": {
+      "get": {
+        "summary": "Get institution profile (Institution)",
+        "description": "Retrieves profile details for the authenticated institution.\n\n- **Roles**: Accessible by Institution and Admin.\n- Returns status, plan details, credits, and metadata.\n",
+        "tags": [
+          "Institution"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Institution profile retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Profile retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "institution": {
+                          "$ref": "#/components/schemas/Institution"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Institution not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update institution profile (Institution)",
+        "description": "Updates the profile information for the authenticated institution.\n\n- **Roles**: Accessible by Institution and Admin.\n- Allows updating the `name` and `metadata` items.\n- Status and Plan cannot be updated here (Admin only).\n",
+        "tags": [
+          "Institution"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateInstitutionProfileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Profile updated successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "institution": {
+                          "$ref": "#/components/schemas/Institution"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Institution not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/institution/access/request": {
+      "post": {
+        "summary": "Request access to a client's wallets (Institution)",
+        "description": "Initiates a request for an institution to view a client's wallet data.\n\n- **Institution Only**: Restricted to users with the Institution role.\n- **Workflow**: Creates a request with status `PENDING`. The client must approve it.\n- Requires the client's `email` to identify the user.\n",
+        "tags": [
+          "Institution"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "description": "Client's email address"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Request sent"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      }
+    },
+    "/api/v1/client/access/requests": {
+      "get": {
+        "summary": "List access requests from institutions (Client)",
+        "description": "Retrieves pending access requests targeted at the authenticated client.\n\n- **Client Only**: Restricted to users with the Client role.\n- Returns requests with `PENDING` status.\n- Includes details about the requesting institution.\n",
+        "tags": [
+          "Client"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of requests"
+          }
+        }
+      }
+    },
+    "/api/v1/client/access/request/{id}": {
+      "put": {
+        "summary": "Respond to access request (Client)",
+        "description": "Approves or rejects an institution's access request.\n\n- **Client Only**: Restricted to users with the Client role.\n- **Actions**: `approve` grants access, `reject` denies it.\n- Updates the request status in the database.\n",
+        "tags": [
+          "Client"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "action"
+                ],
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "approve",
+                      "reject"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Request updated"
+          }
+        }
+      }
+    },
+    "/api/v1/institution/access/clients": {
+      "get": {
+        "summary": "List accessible clients (Institution)",
+        "description": "Retrieves a list of clients who have granted access to the institution.\n\n- **Institution Only**: Restricted to users with the Institution role.\n- Returns client details (name, email) for users with `APPROVED` access requests.\n",
+        "tags": [
+          "Institution"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of accessible clients"
+          }
+        }
+      }
+    },
+    "/api/v1/institution/access/client/{userId}/wallets": {
+      "get": {
+        "summary": "Get wallets of an accessible client (Institution)",
+        "description": "Retrieves the wallets of a specific client that the institution has access to.\n\n- **Institution Only**: Restricted to users with the Institution role.\n- **Permission Check**: Verifies that an `APPROVED` access request exists between the institution and client.\n- Returns the client's connected wallets.\n",
+        "tags": [
+          "Institution"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of client wallets"
+          }
+        }
+      }
+    },
+    "/api/v1/user/subscription": {
+      "get": {
+        "summary": "Get user subscription (Client)",
+        "description": "Retrieves the current subscription plan for the authenticated user.\n",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Subscription details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Subscription retrieved"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "plan": {
+                          "$ref": "#/components/schemas/Plan"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "status": "success",
+                  "message": "Subscription retrieved",
+                  "data": {
+                    "plan": {
+                      "_id": "60d5ec49f1b2c8b1f8e4e1a1",
+                      "name": "Free",
+                      "type": "user",
+                      "price": 0,
+                      "walletLimit": 1,
+                      "apiCallLimit": 0,
+                      "isActive": true,
+                      "features": [
+                        "1 Wallet"
+                      ],
+                      "createdAt": "2023-01-01T00:00:00.000Z",
+                      "updatedAt": "2023-01-01T00:00:00.000Z"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Update user subscription (Client)",
+        "description": "Updates the subscription plan for the authenticated user.\n- **plan**: 'free' or 'pro'\n",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "plan"
+                ],
+                "properties": {
+                  "plan": {
+                    "type": "string",
+                    "enum": [
+                      "free",
+                      "pro"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Subscription updated"
+          }
+        }
+      }
+    },
+    "/api/v1/institution/subscription": {
+      "get": {
+        "summary": "Get institution subscription (Institution)",
+        "description": "Retrieves the current subscription plan for the authenticated institution.\n",
+        "tags": [
+          "Institution"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Subscription details"
+          }
+        }
+      },
+      "post": {
+        "summary": "Update institution subscription (Institution)",
+        "description": "Updates the subscription plan for the authenticated institution.\n- Requires `planId` of the desired plan.\n",
+        "tags": [
+          "Institution"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "planId"
+                ],
+                "properties": {
+                  "planId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Subscription updated"
+          }
+        }
+      }
+    },
+    "/api/v1/user": {
+      "post": {
+        "summary": "Create a new user (Client)",
+        "description": "Registers a new user with the Client role.\n\n- Validates that email, name, and password are provided.\n- Checks if the email is already in use.\n- Hashes the password before storage.\n- Automatically logs the user in upon successful registration (Sets cookies).\n- Assigns the default free plan to the user.\n",
+        "tags": [
+          "Users"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Account created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Account created successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "user": {
+                          "$ref": "#/components/schemas/User"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete user (Admin)",
+        "description": "Permanently deletes a user account.\n\n- **Admin Only**: Restricted to users with the Admin role.\n- **Irreversible**: This action cannot be undone.\n- Requires the `id` of the user to be passed as a query parameter.\n",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "id",
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "description": "The user ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "User deleted successfully"
+                    },
+                    "data": {
+                      "type": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "get": {
+        "summary": "Get user details",
+        "description": "Retrieves the profile details of a user.\n\n- **Default**: Returns the profile of the currently logged-in user.\n- **Admin Override**: If `id` query param is provided AND requester is an Admin, returns the profile of the specified user.\n- **Security**: Non-admin users cannot query other users' profiles; the `id` parameter is ignored for them.\n",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "id",
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "description": "The user ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "User found"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update user details",
+        "description": "Updates an existing user's profile information.\n\n- Only admins can access this endpoint\n- You can update one or more fields at a time\n- Fields not provided will remain unchanged\n\nThis endpoint validates email uniqueness before saving.\n",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "adminUserAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "User updated successfully"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/v1/user/login": {
+      "post": {
+        "summary": "Login a user",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User logged in successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "User logged in successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "user": {
+                          "type": "object"
+                        },
+                        "token": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/v1/user/logout": {
+      "get": {
+        "summary": "Logout user",
+        "description": "Logs out the currently authenticated user.\n\n- Invalidates the current session in the database.\n- Clears authentication cookies (Access and Refresh tokens).\n",
+        "tags": [
+          "Users"
+        ],
+        "responses": {
+          "200": {
+            "description": "User logged out successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "User logged out successfully"
+                    },
+                    "data": {
+                      "type": null
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/all": {
+      "get": {
+        "summary": "Get all users (Admin)",
+        "description": "Retrieves a paginated list of all registered users.\n\n- **Admin Only**: Restricted to users with the Admin role.\n- **Pagination**: Supports `page` and `limit` query parameters.\n- Returns total count for frontend pagination.\n",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "The page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            },
+            "description": "Number of items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Users found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Users found"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UserList"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/search": {
+      "get": {
+        "summary": "Search for a user by email or id (Admin)",
+        "description": "Searches for a specific user using their Email or User ID.\n\n- **Admin Only**: Restricted to users with the Admin role.\n- **Search Type**: Must specify `type` as either 'email' or 'id'.\n- **Term**: The actual email address or ID string to search for.\n- Returns a single user object if found.\n",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "type",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "email",
+                "id"
+              ]
+            },
+            "required": true,
+            "description": "Search type (email or id)"
+          },
+          {
+            "in": "query",
+            "name": "term",
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "description": "Search term"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "User found"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/v1/user/{id}/activation": {
+      "put": {
+        "summary": "Toggle user activation (Admin)",
+        "description": "Activates or deactivates a user account.\n\n- **Admin Only**: Restricted to users with the Admin role.\n- **Behavior**: Deactivated users may be blocked from logging in or accessing certain features.\n- Requires `isActive` boolean in the request body.\n",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "isActive"
+                ],
+                "properties": {
+                  "isActive": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User activation status updated"
+          }
+        }
+      }
+    },
+    "/api/v1/user/phone": {
+      "put": {
+        "summary": "Update user phone",
+        "description": "Updates the phone number for the authenticated user.\n\n- Requires authentication.\n- Validates that the phone number is provided.\n",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "adminUserAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "phone"
+                ],
+                "properties": {
+                  "phone": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "User updated successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "phone": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnalyticsData": {
+        "type": "object",
+        "properties": {
+          "users": {
+            "type": "integer",
+            "description": "Total number of users"
+          },
+          "institutions": {
+            "type": "integer",
+            "description": "Total number of institutions"
+          },
+          "wallets": {
+            "type": "integer",
+            "description": "Total number of wallets"
+          },
+          "apiCalls": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "integer",
+                "description": "Total API calls"
+              },
+              "successful": {
+                "type": "integer",
+                "description": "Number of successful API calls"
+              }
+            }
+          }
+        }
+      },
+      "UpdateInstitutionStatusRequest": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "rejected"
+            ],
+            "description": "New status for the institution"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Additional metadata to update"
+          }
+        }
+      },
+      "Plan": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "user",
+              "institution"
+            ]
+          },
+          "price": {
+            "type": "number"
+          },
+          "walletLimit": {
+            "type": "number"
+          },
+          "apiCallLimit": {
+            "type": "number"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "admin",
+              "institution"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "lastLogin": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "UserListResponse": {
+        "type": "object",
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/User"
+            }
+          },
+          "pagination": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "integer"
+              },
+              "page": {
+                "type": "integer"
+              },
+              "pages": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "CreditScore": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "walletId": {
+            "type": "object",
+            "properties": {
+              "address": {
+                "type": "string"
+              },
+              "chain": {
+                "type": "string"
+              },
+              "nickname": {
+                "type": "string"
+              }
+            }
+          },
+          "score": {
+            "type": "integer"
+          },
+          "breakdown": {
+            "type": "object",
+            "properties": {
+              "age": {
+                "type": "number"
+              },
+              "consistency": {
+                "type": "number"
+              },
+              "balance": {
+                "type": "number"
+              },
+              "flow": {
+                "type": "number"
+              },
+              "penalty": {
+                "type": "number"
+              }
+            }
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Wallet": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "chain": {
+            "type": "string"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AddWalletRequest": {
+        "type": "object",
+        "required": [
+          "address",
+          "chain"
+        ],
+        "properties": {
+          "address": {
+            "type": "string",
+            "description": "Public wallet address"
+          },
+          "chain": {
+            "type": "string",
+            "example": "ethereum",
+            "description": "Blockchain network"
+          },
+          "nickname": {
+            "type": "string",
+            "description": "Optional nickname for the wallet"
+          }
+        }
+      },
+      "ApiKey": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastUsed": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "GenerateApiKeyRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name for the API key"
+          }
+        }
+      },
+      "InstitutionStats": {
+        "type": "object",
+        "properties": {
+          "totalCalls": {
+            "type": "integer",
+            "description": "Total API calls made"
+          },
+          "successfulCalls": {
+            "type": "integer",
+            "description": "Number of successful API calls"
+          },
+          "failedCalls": {
+            "type": "integer",
+            "description": "Number of failed API calls"
+          },
+          "remainingCredits": {
+            "type": "integer",
+            "description": "Remaining API credits"
+          }
+        }
+      },
+      "RegisterInstitutionRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "email",
+          "password",
+          "institutionName"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the admin user"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Email of the admin user"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "Password for the account"
+          },
+          "institutionName": {
+            "type": "string",
+            "description": "Name of the institution"
+          }
+        }
+      },
+      "Institution": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ]
+          },
+          "credits": {
+            "type": "integer"
+          },
+          "apiKeys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApiKey"
+            }
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "UpdateInstitutionProfileRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "error"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": null
+          }
+        }
+      },
+      "UserList": {
+        "type": "object",
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/User"
+            }
+          },
+          "totalUsers": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+  },
+  "tags": []
+}

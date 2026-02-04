@@ -27,10 +27,10 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-  SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { useAuth } from "@/components/auth-provider"
 
 const navItems = {
   user: [
@@ -61,6 +61,8 @@ const navItems = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
+  const { user: authUser, logout } = useAuth()
+  const [institutionName, setInstitutionName] = React.useState<string | null>(null)
   
   let role = "user" as keyof typeof navItems
   if (pathname.includes("/dashboard/institution")) {
@@ -69,11 +71,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     role = "admin"
   }
 
+  React.useEffect(() => {
+    if (role === "institution") {
+      import("@/lib/api-client").then(({ apiClient }) => {
+        apiClient<{ data: { institution: { name: string } } }>("/api/v1/institution/profile")
+          .then(res => setInstitutionName(res.data.institution.name))
+          .catch(() => {});
+      });
+    }
+  }, [role]);
+
   const items = navItems[role]
   const user = {
-    name: role === "user" ? "John Doe" : role === "institution" ? "Liquid Sahara Ltd" : "Admin User",
-    email: role === "user" ? "john@example.com" : role === "institution" ? "contact@liquidsahara.com" : "admin@mosaic.com",
-    avatar: "/avatars/01.png", 
+    name: institutionName || authUser?.name || (role === "user" ? "Client" : role === "institution" ? "Institution" : "Admin"),
+    email: authUser?.email || "mosaic@example.com",
+    avatar: undefined, 
   }
 
   return (
@@ -116,8 +128,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
                   <Avatar className="h-8 w-8 rounded-lg">
-                    <AvatarImage src={user.avatar} alt={user.name} />
-                    <AvatarFallback className="rounded-lg">{user.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                    {user.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
+                    <AvatarFallback className="rounded-lg bg-zinc-800 text-zinc-400">{user.name.slice(0, 2).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                     <span className="truncate font-semibold">{user.name}</span>
@@ -132,7 +144,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 align="end"
                 sideOffset={4}
               >
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={logout}>
                    Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>
