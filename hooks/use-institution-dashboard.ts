@@ -30,7 +30,7 @@ export interface AccessibleClient {
 }
 
 export interface APIKey {
-  [x: string]: string;
+  [x: string]: string | undefined | boolean;
   _id: string;
   prefix: string;
   key?: string; 
