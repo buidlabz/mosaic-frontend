@@ -1,5 +1,5 @@
 
-const BASE_URL = "https://mosaic.101software.site";
+const BASE_URL = "http://localhost:9002";
 
 interface FetchOptions extends RequestInit {
   params?: Record<string, string>;

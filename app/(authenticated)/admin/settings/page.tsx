@@ -64,7 +64,7 @@ export default function AdminSettingsPage() {
               </div>
               <div className="space-y-2">
                  <label className="text-[10px] text-zinc-500 uppercase font-bold">API Base URL Override</label>
-                 <Input className="bg-zinc-950 border-zinc-800 text-white" defaultValue="https://mosaic.101software.site" />
+                 <Input className="bg-zinc-950 border-zinc-800 text-white" defaultValue="http://localhost:9002" />
               </div>
            </CardContent>
            <CardFooter>

@@ -10,7 +10,7 @@
   },
   "servers": [
     {
-      "url": "https://mosaic.101software.site"
+      "url": "http://localhost:9002"
     }
   ],
   "paths": {
