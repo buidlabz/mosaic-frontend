@@ -1,8 +1,6 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts"
 import { useUserDashboard } from "@/hooks/use-user-dashboard"
 import { Skeleton } from "@/components/ui/skeleton"
 import { IconChartBar, IconInfoCircle } from "@tabler/icons-react"
@@ -36,11 +34,13 @@ export default function CreditScorePage() {
             <CardHeader>
                <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-zinc-200">Wallet: {score.address.slice(0, 6)}...{score.address.slice(-4)}</CardTitle>
-                    <CardDescription>Last updated: {new Date(score.updatedAt).toLocaleDateString()}</CardDescription>
+                    <CardTitle className="text-zinc-200">Wallet: {score.walletId.address.slice(0, 6)}...{score.walletId.address.slice(-4)}</CardTitle>
+                    <CardDescription>
+                      {score.lastUpdated ? `Last updated: ${new Date(score.lastUpdated).toLocaleDateString()}` : score.message || "Score unavailable"}
+                    </CardDescription>
                   </div>
                   <div className="h-12 w-12 rounded-full border-4 border-[#00FF00] flex items-center justify-center">
-                    <span className="font-bold text-[#00FF00]">{Math.round(score.score)}</span>
+                    <span className="font-bold text-[#00FF00]">{score.score !== null ? Math.round(score.score) : "N/A"}</span>
                   </div>
                </div>
             </CardHeader>
@@ -52,13 +52,54 @@ export default function CreditScorePage() {
                   </div>
                   
                   <div className="grid md:grid-cols-2 gap-4 pt-4">
-                    {Object.entries(score.breakdown).map(([key, value]) => (
+                    <div className="flex justify-between items-center p-3 bg-zinc-950 border border-zinc-800 rounded-lg">
+                      <span className="text-zinc-400">Grade</span>
+                      <span className="text-white font-medium">{score.grade ?? "N/A"}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-zinc-950 border border-zinc-800 rounded-lg">
+                      <span className="text-zinc-400">Risk Tier</span>
+                      <span className="text-white font-medium">{score.riskTier ?? "N/A"}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-zinc-950 border border-zinc-800 rounded-lg">
+                      <span className="text-zinc-400">Positive Points</span>
+                      <span className="text-white font-medium">{score.positivePoints ?? "N/A"}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-zinc-950 border border-zinc-800 rounded-lg">
+                      <span className="text-zinc-400">Penalty Points</span>
+                      <span className="text-white font-medium">{score.penaltyPoints ?? "N/A"}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-zinc-950 border border-zinc-800 rounded-lg">
+                      <span className="text-zinc-400">Max Score</span>
+                      <span className="text-white font-medium">{score.maxScore ?? "N/A"}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-zinc-950 border border-zinc-800 rounded-lg">
+                      <span className="text-zinc-400">Algorithm</span>
+                      <span className="text-white font-medium">{score.algorithmVersion ?? "N/A"}</span>
+                    </div>
+                    {score.breakdown && Object.entries(score.breakdown).map(([key, value]) => (
                       <div key={key} className="flex justify-between items-center p-3 bg-zinc-950 border border-zinc-800 rounded-lg">
                         <span className="text-zinc-400 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
                         <span className="text-white font-medium">{String(value)}</span>
                       </div>
                     ))}
                   </div>
+
+                  {(score.reasoning.length > 0 || score.penalties.length > 0) && (
+                    <div className="grid md:grid-cols-2 gap-4 pt-2">
+                      <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-lg space-y-2">
+                        <p className="text-sm font-medium text-zinc-200">Reasoning</p>
+                        {score.reasoning.length > 0 ? score.reasoning.map((item) => (
+                          <p key={item} className="text-sm text-zinc-400">{item}</p>
+                        )) : <p className="text-sm text-zinc-500">No reasoning available.</p>}
+                      </div>
+                      <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-lg space-y-2">
+                        <p className="text-sm font-medium text-zinc-200">Penalties</p>
+                        {score.penalties.length > 0 ? score.penalties.map((item) => (
+                          <p key={item} className="text-sm text-zinc-400">{item}</p>
+                        )) : <p className="text-sm text-zinc-500">No penalties applied.</p>}
+                      </div>
+                    </div>
+                  )}
                </div>
             </CardContent>
           </Card>

@@ -1,24 +1,79 @@
 "use client"
 
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useAppKitTheme } from "@reown/appkit/react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { Bar, BarChart, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
+import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from "recharts"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { IconWallet, IconArrowsExchange, IconShieldCheck, IconCreditCard, IconHistory } from "@tabler/icons-react"
+import { IconWallet, IconShieldCheck, IconCreditCard } from "@tabler/icons-react"
 import { useUserDashboard } from "@/hooks/use-user-dashboard"
 import { Skeleton } from "@/components/ui/skeleton"
 
-export default function UserDashboard() {
-  const { scores, wallets, subscription, accessRequests, loading, error } = useUserDashboard();
+const MONTHS = [
+  { label: "Jan", monthIndex: 0 },
+  { label: "Feb", monthIndex: 1 },
+  { label: "March", monthIndex: 2 },
+  { label: "April", monthIndex: 3 },
+  { label: "May", monthIndex: 4 },
+] as const
+const GRADE_SCALE = ["E", "D", "C", "B", "A"] as const
+const GRADE_TO_VALUE = {
+  "A": 5,
+  "A-": 5,
+  "B+": 4,
+  "B": 4,
+  "B-": 4,
+  "C+": 3,
+  "C": 3,
+  "C-": 3,
+  "D+": 2,
+  "D": 2,
+  "D-": 2,
+  "E": 1,
+} as const
 
-  // For history, we'll use the breakdown of the first score or a default
-  const activityData = scores.length > 0 ? [
-    { date: "Current", score: scores[0].score }
-  ] : [
-    { date: "Jan", score: 0 },
-    { date: "Feb", score: 0 },
-  ];
+export default function UserDashboard() {
+  const router = useRouter()
+  const { setThemeMode } = useAppKitTheme()
+  const { scores, wallets, subscription, accessRequests, loading, error } = useUserDashboard();
+  const primaryScore = scores.find((score) => score.scoreStatus === "available" && score.score !== null) ?? null;
+
+  useEffect(() => {
+    setThemeMode(window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+  }, [setThemeMode])
+
+  const historyByMonth = new Map<number, { grade: string | null; score: number | null }>();
+
+  primaryScore?.history.forEach((entry) => {
+    const entryDate = new Date(entry.timestamp);
+    const monthIndex = entryDate.getMonth();
+
+    if (monthIndex < MONTHS[0].monthIndex || monthIndex > MONTHS[MONTHS.length - 1].monthIndex) {
+      return;
+    }
+
+    historyByMonth.set(monthIndex, {
+      grade: entry.grade ?? null,
+      score: entry.score ?? null,
+    });
+  });
+
+  const activityData = MONTHS.map(({ label, monthIndex }) => {
+    const historyEntry = historyByMonth.get(monthIndex);
+    const normalizedGrade = historyEntry?.grade?.toUpperCase() ?? null;
+    const gradeValue = normalizedGrade ? GRADE_TO_VALUE[normalizedGrade as keyof typeof GRADE_TO_VALUE] ?? 0 : 0;
+
+    return {
+      month: label,
+      grade: normalizedGrade ?? "N/A",
+      gradeValue,
+      score: historyEntry?.score ?? null,
+      fill: gradeValue > 0 ? "#00FF00" : "#27272a",
+    };
+  });
 
   if (loading) {
      return (
@@ -36,6 +91,10 @@ export default function UserDashboard() {
      return <div className="p-6 text-red-500">Error: {error}</div>;
   }
 
+  const handleWalletButtonClick = () => {
+    router.push("/dashboard/user/wallet")
+  }
+
   return (
     <div className="p-6 space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -43,8 +102,12 @@ export default function UserDashboard() {
            <h1 className="text-3xl font-bold tracking-tight text-white">Your Mosaic Dashboard</h1>
            <p className="text-zinc-400">Track your blockchain credit and manage swaps.</p>
         </div>
-        <Button className="bg-[#00FF00] text-black hover:bg-[#00DD00]">
-           <IconWallet className="mr-2 h-4 w-4" /> Connect Wallet
+        <Button
+          className="bg-[#00FF00] text-black hover:bg-[#00DD00]"
+          onClick={handleWalletButtonClick}
+        >
+           <IconWallet className="mr-2 h-4 w-4" />
+           Add Wallet
         </Button>
       </div>
 
@@ -58,8 +121,18 @@ export default function UserDashboard() {
            <CardContent className="flex items-center justify-center py-8">
               <div className="relative w-40 h-40 flex items-center justify-center rounded-full border-8 border-zinc-800 border-t-[#00FF00] border-r-[#00FF00]">
                  <div className="text-center">
-                    <span className="text-4xl font-bold text-white">{scores.length > 0 ? Math.round(scores[0].score) : "N/A"}</span>
-                    <span className="text-xs text-zinc-500 block">/100</span>
+                    <span className="text-4xl font-bold text-white">{primaryScore?.score !== null && primaryScore ? Math.round(primaryScore.score) : "N/A"}</span>
+                    <span className="text-xs text-zinc-500 block">/{primaryScore?.maxScore ?? 120}</span>
+                 </div>
+                 <div > 
+                 </div>
+              </div>
+                  <div className="relative w-40 h-40 flex items-center justify-center rounded-full border-8 border-zinc-800 border-t-[#00FF00] border-r-[#00FF00]">
+                 <div className="text-center">
+                    <span className="text-4xl font-bold text-white">{primaryScore?.grade ?? "N/A"}</span>
+                     <span className="text-xs text-zinc-500 block">Grade</span>
+                 </div>
+                 <div > 
                  </div>
               </div>
            </CardContent>
@@ -73,13 +146,44 @@ export default function UserDashboard() {
            </CardHeader>
            <CardContent>
               <div className="h-[200px] w-full">
-                  <ChartContainer config={{ score: { label: "Score", color: "#00FF00" } }} className="h-full w-full">
-                     <LineChart data={activityData}>
-                        <XAxis dataKey="date" stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
-                        <YAxis stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} domain={[0, 100]} />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Line type="monotone" dataKey="score" stroke="#00FF00" strokeWidth={2} dot={{ fill: "#00FF00" }} />
-                     </LineChart>
+                  <ChartContainer config={{ gradeValue: { label: "Grade", color: "#00FF00" } }} className="h-full w-full">
+                     <BarChart data={activityData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                        <CartesianGrid vertical={false} stroke="#27272a" />
+                        <XAxis dataKey="month" stroke="#71717a" fontSize={12} tickLine={false} axisLine={false} />
+                        <YAxis
+                          stroke="#71717a"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                          domain={[1, 5]}
+                          ticks={[1, 2, 3, 4, 5]}
+                          tickFormatter={(value) => GRADE_SCALE[value - 1] ?? ""}
+                        />
+                        <ChartTooltip
+                          cursor={{ fill: "rgba(63, 63, 70, 0.18)" }}
+                          content={
+                            <ChartTooltipContent
+                              labelFormatter={(_, payload) => payload?.[0]?.payload?.month ?? ""}
+                              formatter={(_, __, item) => {
+                                const payload = item.payload as { grade: string; score: number | null };
+                                return (
+                                  <div className="flex min-w-[8rem] items-center justify-between gap-3">
+                                    <span className="text-zinc-400">Grade</span>
+                                    <span className="font-medium text-white">
+                                      {payload.grade}{payload.score !== null ? ` (${Math.round(payload.score)})` : ""}
+                                    </span>
+                                  </div>
+                                );
+                              }}
+                            />
+                          }
+                        />
+                        <Bar dataKey="gradeValue" radius={[8, 8, 0, 0]} maxBarSize={44}>
+                          {activityData.map((entry) => (
+                            <Cell key={entry.month} fill={entry.fill} />
+                          ))}
+                        </Bar>
+                     </BarChart>
                   </ChartContainer>
               </div>
            </CardContent>

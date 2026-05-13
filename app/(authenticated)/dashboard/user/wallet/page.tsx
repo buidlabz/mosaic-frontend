@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { useAppKit, useAppKitAccount, useAppKitNetwork } from "@reown/appkit/react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -8,24 +9,79 @@ import { useUserDashboard } from "@/hooks/use-user-dashboard"
 import { Skeleton } from "@/components/ui/skeleton"
 import { IconWallet, IconPlus, IconTrash, IconExternalLink } from "@tabler/icons-react"
 import { apiClient } from "@/lib/api-client"
+import { supportedWalletNetworks } from "@/lib/reown-appkit"
+
+type SupportedChain = keyof typeof supportedWalletNetworks
+
+const NETWORK_OPTIONS: Array<{ label: string; value: SupportedChain }> = [
+  { label: "Base", value: "base" },
+  { label: "Ethereum", value: "ethereum" },
+]
 
 export default function WalletPage() {
   const { wallets, loading, error, refresh } = useUserDashboard();
+  const { open } = useAppKit()
+  const { address, isConnected } = useAppKitAccount()
+  const { caipNetwork, switchNetwork } = useAppKitNetwork()
   const [isAdding, setIsAdding] = useState(false);
-  const [newWallet, setNewWallet] = useState({ address: "", chain: "ethereum", nickname: "" });
+  const [selectedChain, setSelectedChain] = useState<SupportedChain>("base");
+  const [nickname, setNickname] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const targetNetwork = supportedWalletNetworks[selectedChain]
+  const isSelectedNetworkConnected = !!address && caipNetwork?.id === targetNetwork.id
+
+  useEffect(() => {
+    if (!isConnected) {
+      return
+    }
+
+    if (caipNetwork?.id !== targetNetwork.id) {
+      void switchNetwork(targetNetwork)
+    }
+  }, [caipNetwork?.id, isConnected, switchNetwork, targetNetwork])
+
+  const handleConnectWallet = async () => {
+    try {
+      setFormError(null)
+
+      if (caipNetwork?.id !== targetNetwork.id) {
+        await switchNetwork(targetNetwork)
+      }
+
+      await open({ view: "Connect" })
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Failed to connect wallet.")
+    }
+  }
 
   const handleAddWallet = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!address) {
+      setFormError("Connect a wallet first.")
+      return
+    }
+
     try {
+      setIsSubmitting(true)
+      setFormError(null)
+
       await apiClient("/api/v1/client/wallet", {
         method: "POST",
-        body: JSON.stringify(newWallet),
+        body: JSON.stringify({
+          address,
+          chain: selectedChain,
+          nickname: nickname.trim() || undefined,
+        }),
       });
       setIsAdding(false);
-      setNewWallet({ address: "", chain: "ethereum", nickname: "" });
-      refresh();
+      setNickname("");
+      await refresh();
     } catch (err) {
-      console.error("Failed to add wallet:", err);
+      setFormError(err instanceof Error ? err.message : "Failed to add wallet.")
+    } finally {
+      setIsSubmitting(false)
     }
   };
 
@@ -68,7 +124,7 @@ export default function WalletPage() {
         <Card className="bg-zinc-900 border-zinc-800">
           <CardHeader>
             <CardTitle className="text-white">Link New Wallet</CardTitle>
-            <CardDescription>Enter your wallet details below.</CardDescription>
+            <CardDescription>Select a supported network, connect that wallet, then submit it.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleAddWallet} className="space-y-4">
@@ -79,37 +135,55 @@ export default function WalletPage() {
                     type="text"
                     placeholder="e.g. My Ledger"
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-white outline-none focus:border-[#00FF00]"
-                    value={newWallet.nickname}
-                    onChange={(e) => setNewWallet({ ...newWallet, nickname: e.target.value })}
+                    value={nickname}
+                    onChange={(e) => setNickname(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs text-zinc-500 uppercase font-bold">Address</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="0x..."
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-white outline-none focus:border-[#00FF00]"
-                    value={newWallet.address}
-                    onChange={(e) => setNewWallet({ ...newWallet, address: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs text-zinc-500 uppercase font-bold">Chain</label>
+                  <label className="text-xs text-zinc-500 uppercase font-bold">Network</label>
                   <select
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-white outline-none focus:border-[#00FF00]"
-                    value={newWallet.chain}
-                    onChange={(e) => setNewWallet({ ...newWallet, chain: e.target.value })}
+                    value={selectedChain}
+                    onChange={(e) => setSelectedChain(e.target.value as SupportedChain)}
                   >
-                    <option value="ethereum">Ethereum</option>
-                    <option value="bitcoin">Bitcoin</option>
-                    <option value="polygon">Polygon</option>
-                    <option value="arbitrum">Arbitrum</option>
+                    {NETWORK_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
+                <div className="space-y-2">
+                  <label className="text-xs text-zinc-500 uppercase font-bold">Connected Address</label>
+                  <div className="w-full rounded-lg border border-zinc-800 bg-zinc-950 p-2 text-sm text-zinc-300">
+                    {address ?? "No wallet connected"}
+                  </div>
+                </div>
               </div>
+              {formError && (
+                <p className="text-sm text-red-400">{formError}</p>
+              )}
+              {address && !isSelectedNetworkConnected && (
+                <p className="text-sm text-yellow-400">
+                  Switch the connected wallet to {selectedChain} before saving.
+                </p>
+              )}
               <div className="flex gap-2">
-                <Button type="submit" className="bg-[#00FF00] text-black hover:bg-[#00DD00]">Save Wallet</Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleConnectWallet}
+                  className="border-[#00FF00] text-[#00FF00] hover:bg-[#00FF00] hover:text-black"
+                >
+                  {isSelectedNetworkConnected ? "Connected" : "Connect Wallet"}
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-[#00FF00] text-black hover:bg-[#00DD00]"
+                  disabled={!isSelectedNetworkConnected || isSubmitting}
+                >
+                  {isSubmitting ? "Saving..." : "Save Wallet"}
+                </Button>
                 <Button type="button" variant="ghost" onClick={() => setIsAdding(false)} className="text-zinc-400 hover:text-white">Cancel</Button>
               </div>
             </form>

@@ -36,7 +36,7 @@ const navItems = {
   user: [
     { title: "Overview", url: "/dashboard/user", icon: IconLayoutDashboard },
     { title: "Credit Score", url: "/dashboard/user/credit", icon: IconChartBar },
-    { title: "Payments & Swaps", url: "/dashboard/user/payments", icon: IconCreditCard },
+    { title: "Subscriptions", url: "/dashboard/user/payments", icon: IconCreditCard },
     { title: "Wallet", url: "/dashboard/user/wallet", icon: IconWallet },
     { title: "Profile", url: "/dashboard/user/profile", icon: IconUser },
     { title: "Settings", url: "/dashboard/user/settings", icon: IconSettings },

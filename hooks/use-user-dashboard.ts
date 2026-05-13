@@ -10,11 +10,35 @@ export interface Wallet {
 }
 
 export interface CreditScore {
-  walletId: string;
-  address: string;
-  score: number;
-  breakdown: Record<string, unknown>;
-  updatedAt: string;
+  _id?: string;
+  walletId: {
+    id: string;
+    address: string;
+    chain: string;
+    nickname?: string;
+  };
+  scoreStatus: "available" | "unsupported" | "error";
+  score: number | null;
+  breakdown: Record<string, unknown> | null;
+  provider: string;
+  lastUpdated: string | null;
+  history: Array<{
+    score: number;
+    timestamp: string;
+    provider: string;
+    breakdown?: Record<string, unknown> | null;
+    grade?: string | null;
+    riskTier?: string | null;
+  }>;
+  grade: string | null;
+  riskTier: string | null;
+  maxScore: number | null;
+  penalties: string[];
+  reasoning: string[];
+  positivePoints: number | null;
+  penaltyPoints: number | null;
+  algorithmVersion: string | null;
+  message?: string | null;
 }
 
 export interface Plan {
@@ -36,6 +60,17 @@ export interface AccessRequest {
   createdAt: string;
 }
 
+type ScoreHistoryResponseData =
+  | CreditScore[]
+  | CreditScore
+  | {
+      scores?: CreditScore[];
+    };
+
+function hasScoresArray(data: ScoreHistoryResponseData): data is { scores?: CreditScore[] } {
+  return typeof data === "object" && data !== null && "scores" in data;
+}
+
 export function useUserDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,14 +90,22 @@ export function useUserDashboard() {
     setLoading(true);
     try {
       const [scoresRes, walletsRes, subRes, requestsRes] = await Promise.all([
-        apiClient<{ data: { scores: CreditScore[] } }>("/api/v1/client/score"),
+        apiClient<{ data: ScoreHistoryResponseData }>("/api/v1/client/score/history"),
         apiClient<{ data: { wallets: Wallet[] } }>("/api/v1/client/wallet"),
         apiClient<{ data: { plan: Plan } }>("/api/v1/user/subscription"),
         apiClient<{ data: { requests: AccessRequest[] } }>("/api/v1/client/access/requests"),
       ]);
 
+      const normalizedScores = Array.isArray(scoresRes.data)
+        ? scoresRes.data
+        : hasScoresArray(scoresRes.data)
+          ? scoresRes.data.scores ?? []
+          : scoresRes.data
+            ? [scoresRes.data]
+            : [];
+
       setData({
-        scores: scoresRes.data.scores,
+        scores: normalizedScores,
         wallets: walletsRes.data.wallets,
         subscription: subRes.data.plan,
         accessRequests: requestsRes.data.requests || [],

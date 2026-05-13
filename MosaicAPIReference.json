@@ -187,10 +187,10 @@
     },
     "/api/v1/admin/plans": {
       "get": {
-        "summary": "List all plans (Admin)",
-        "description": "Retrieves all subscription plans. Can be filtered by type.\n- **Admin Only**.\n",
+        "summary": "List all plans",
+        "description": "Retrieves all subscription plans. Can be filtered by type.\n",
         "tags": [
-          "Admin"
+          "Plans"
         ],
         "security": [
           {
@@ -245,7 +245,7 @@
         "summary": "Create a new plan (Admin)",
         "description": "Creates a new subscription plan.\n- **Admin Only**.\n",
         "tags": [
-          "Admin"
+          "Plans"
         ],
         "security": [
           {
@@ -315,7 +315,7 @@
         "summary": "Update a plan (Admin)",
         "description": "Updates an existing plan.\n- **Admin Only**.\n",
         "tags": [
-          "Admin"
+          "Plans"
         ],
         "security": [
           {
@@ -375,7 +375,7 @@
         "summary": "Delete a plan (Admin)",
         "description": "Deletes a plan.\n- **Admin Only**.\n- **Caution**: A plan cannot be removed if it is subscribed to by any user or institution.\n",
         "tags": [
-          "Admin"
+          "Plans"
         ],
         "security": [
           {
@@ -395,6 +395,155 @@
         "responses": {
           "200": {
             "description": "Plan deleted"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/logs": {
+      "get": {
+        "summary": "Get system logs (Admin)",
+        "description": "Retrieves system logs with advanced filtering options.\n\n- **Admin Only**: Restricted to users with the Admin role.\n",
+        "tags": [
+          "SystemLogs"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "startDate",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Start date for filtering"
+          },
+          {
+            "in": "query",
+            "name": "endDate",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "End date for filtering"
+          },
+          {
+            "in": "query",
+            "name": "action",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by action type"
+          },
+          {
+            "in": "query",
+            "name": "actorId",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by actor ID"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of system logs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "System logs retrieved"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/SystemLog"
+                          }
+                        },
+                        "pagination": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "integer"
+                            },
+                            "page": {
+                              "type": "integer"
+                            },
+                            "limit": {
+                              "type": "integer"
+                            },
+                            "pages": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "status": "success",
+                  "message": "System logs retrieved",
+                  "data": {
+                    "data": [
+                      {
+                        "_id": "65c4b...e1",
+                        "action": "USER_LOGIN",
+                        "actorId": {
+                          "_id": "65c...",
+                          "name": "Admin User",
+                          "email": "admin@example.com",
+                          "role": "ADMIN"
+                        },
+                        "details": {
+                          "ip": "127.0.0.1"
+                        },
+                        "timestamp": "2024-02-09T10:00:00Z"
+                      }
+                    ],
+                    "pagination": {
+                      "total": 50,
+                      "page": 1,
+                      "limit": 20,
+                      "pages": 3
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error"
           }
         }
       }
@@ -540,9 +689,9 @@
     "/api/v1/client/score": {
       "get": {
         "summary": "Get credit scores for connected wallets (Client)",
-        "description": "Retrieves the credit scores for all wallets connected to the user's account.\n\n- **Client Only**: Restricted to users with the Client role.\n- Calculates scores based on wallet activity, balance, and history.\n- Returns a list of scores, each associated with a specific wallet.\n",
+        "description": "Retrieves the latest Mosaic credit score for each wallet connected to the authenticated client.\n\n- **Client Only**: Restricted to users with the Client role.\n- **Supported Scoring Networks**: `ethereum` and `base`.\n- **Auto Refresh**: Stored scores older than 4 hours are recalculated before the response is returned.\n- **Per-wallet Status**: Each wallet returns `available`, `unsupported`, or `error` in `scoreStatus`.\n- **No History Payload**: This endpoint returns the current score snapshot only.\n",
         "tags": [
-          "Client"
+          "Credit Scores"
         ],
         "security": [
           {
@@ -577,9 +726,72 @@
                       }
                     }
                   }
+                },
+                "example": {
+                  "status": "success",
+                  "message": "Scores retrieved",
+                  "data": {
+                    "scores": [
+                      {
+                        "walletId": {
+                          "id": "68227df95dc7c83f0867e9a1",
+                          "address": "0x8ba1f109551bd432803012645ac136ddd64dba72",
+                          "chain": "ethereum",
+                          "nickname": "Main Wallet"
+                        },
+                        "scoreStatus": "available",
+                        "score": 73,
+                        "breakdown": {
+                          "walletAge": 12,
+                          "activity": 8,
+                          "recency": 10,
+                          "counterpartyDiversity": 8,
+                          "ethVolume": 12,
+                          "stablecoinVolume": 8,
+                          "balanceFlow": 7,
+                          "consistency": 7,
+                          "behavior": 6,
+                          "riskPenalties": 5
+                        },
+                        "provider": "mosaic",
+                        "lastUpdated": "2026-05-13T08:15:24.000Z",
+                        "history": [],
+                        "grade": "B",
+                        "riskTier": "Medium Risk",
+                        "maxScore": 120,
+                        "penalties": [
+                          "No stablecoin activity"
+                        ],
+                        "reasoning": [
+                          "Wallet age score: +12",
+                          "Activity score: +8"
+                        ],
+                        "positivePoints": 78,
+                        "penaltyPoints": 5,
+                        "algorithmVersion": "mosaic-v1"
+                      },
+                      {
+                        "walletId": {
+                          "id": "68227df95dc7c83f0867e9a2",
+                          "address": "TXYZ123exampleunsupported",
+                          "chain": "tron"
+                        },
+                        "scoreStatus": "unsupported",
+                        "score": null,
+                        "breakdown": null,
+                        "provider": "mosaic",
+                        "lastUpdated": null,
+                        "history": [],
+                        "message": "Unsupported network \"tron\". Mosaic credit scoring currently supports ethereum and base only."
+                      }
+                    ]
+                  }
                 }
               }
             }
+          },
+          "401": {
+            "description": "Authentication required"
           },
           "500": {
             "description": "Server error",
@@ -596,10 +808,10 @@
     },
     "/api/v1/institution/score/adhoc": {
       "post": {
-        "summary": "Get credit score for any wallet address (Ad-hoc)",
-        "description": "Calculates a credit score for a specific wallet address on demand.\n\n- **Institution Only**: Restricted to users with the Institution role.\n- **On-the-fly**: Does not require the wallet to be connected to a user account.\n- Requires `address` and `chain` in the request body.\n- This action consumes API credits.\n",
+        "summary": "Get credit score for any wallet address (Institution)",
+        "description": "Runs a fresh Mosaic wallet analysis for a specific wallet address without requiring that wallet to be connected to a Mosaic user account.\n\n- **Institution Only**: Restricted to users with the Institution role.\n- **Supported Scoring Networks**: `ethereum` and `base`.\n- **Fresh Analysis**: Forces a live score refresh for the requested wallet.\n- **No Score History Persistence in Response**: Returns the live score payload only.\n- Requires `address` and `chain` in the request body.\n- This action consumes API credits.\n",
         "tags": [
-          "Institution"
+          "Credit Scores"
         ],
         "security": [
           {
@@ -618,12 +830,19 @@
                 ],
                 "properties": {
                   "address": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "0x8ba1f109551bd432803012645ac136ddd64dba72"
                   },
                   "chain": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Supported values are `ethereum` and `base`.",
+                    "example": "ethereum"
                   }
                 }
+              },
+              "example": {
+                "address": "0x8ba1f109551bd432803012645ac136ddd64dba72",
+                "chain": "ethereum"
               }
             }
           }
@@ -640,21 +859,60 @@
                       "type": "string",
                       "example": "success"
                     },
+                    "message": {
+                      "type": "string",
+                      "example": "Score calculated"
+                    },
                     "data": {
-                      "type": "object",
-                      "properties": {
-                        "score": {
-                          "type": "number"
-                        },
-                        "breakdown": {
-                          "type": "object"
-                        }
-                      }
+                      "$ref": "#/components/schemas/AdHocCreditScoreResponse"
                     }
+                  }
+                },
+                "example": {
+                  "status": "success",
+                  "message": "Score calculated",
+                  "data": {
+                    "score": 73,
+                    "breakdown": {
+                      "walletAge": 12,
+                      "activity": 8,
+                      "recency": 10,
+                      "counterpartyDiversity": 8,
+                      "ethVolume": 12,
+                      "stablecoinVolume": 8,
+                      "balanceFlow": 7,
+                      "consistency": 7,
+                      "behavior": 6,
+                      "riskPenalties": 5
+                    },
+                    "grade": "B",
+                    "riskTier": "Medium Risk",
+                    "maxScore": 120,
+                    "penalties": [
+                      "No stablecoin activity"
+                    ],
+                    "reasoning": [
+                      "Wallet age score: +12",
+                      "Activity score: +8"
+                    ],
+                    "provider": "mosaic",
+                    "lastUpdated": "2026-05-13T08:15:24.000Z"
                   }
                 }
               }
             }
+          },
+          "400": {
+            "description": "Missing wallet details or unsupported scoring network"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Institution profile missing or subscription plan does not allow API calls"
+          },
+          "500": {
+            "description": "Server error"
           }
         }
       }
@@ -664,7 +922,7 @@
         "summary": "Add a blockchain wallet (Client)",
         "description": "Connects a new blockchain wallet to the user's account.\n\n- **Client Only**: Restricted to users with the Client role.\n- **Uniqueness**: Prevents adding the same wallet address/chain combination twice.\n- Requires `address` and `chain`. `nickname` is optional.\n",
         "tags": [
-          "Client"
+          "Wallets"
         ],
         "security": [
           {
@@ -736,7 +994,7 @@
         "summary": "List connected wallets (Client)",
         "description": "Retrieves all wallets connected to the authenticated user's account.\n\n- **Client Only**: Restricted to users with the Client role.\n- Returns a list of wallet objects including address, chain, and nickname.\n",
         "tags": [
-          "Client"
+          "Wallets"
         ],
         "security": [
           {
@@ -793,7 +1051,7 @@
         "summary": "Remove a wallet (Client)",
         "description": "Disconnects a wallet from the user's account.\n\n- **Client Only**: Restricted to users with the Client role.\n- **Effect**: The wallet will no longer be tracked or scored for this user.\n- Requires the `id` of the wallet record (not the address).\n",
         "tags": [
-          "Client"
+          "Wallets"
         ],
         "security": [
           {
@@ -863,7 +1121,7 @@
         "summary": "Generate a new API key (Institution)",
         "description": "Creates a new API key for the authenticated institution.\n\n- **Institution Only**: Restricted to users with the Institution role.\n- **Output**: Returns the raw API key ONLY ONCE. It cannot be retrieved later as it is hashed in the database.\n- Requires a `name` to identify the key.\n",
         "tags": [
-          "Institution"
+          "API Keys"
         ],
         "security": [
           {
@@ -945,7 +1203,7 @@
         "summary": "List API keys (Institution)",
         "description": "Retrieves all API keys generated by the institution.\n\n- **Institution Only**: Restricted to users with the Institution role.\n- Returns a list of keys with metadata (name, prefix, created/used dates, status).\n- Does NOT return the full raw key, only the prefix.\n",
         "tags": [
-          "Institution"
+          "API Keys"
         ],
         "security": [
           {
@@ -1002,7 +1260,7 @@
         "summary": "Revoke an API key (Institution)",
         "description": "Permanently revokes (deletes) an API key.\n\n- **Institution Only**: Restricted to users with the Institution role.\n- **Immediate Effect**: The key will no longer be valid for API access.\n- Requires the `id` of the key to be revoked.\n",
         "tags": [
-          "Institution"
+          "API Keys"
         ],
         "security": [
           {
@@ -1379,7 +1637,27 @@
         },
         "responses": {
           "201": {
-            "description": "Request sent"
+            "description": "Request sent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Access request sent"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AccessRequest"
+                    }
+                  }
+                }
+              }
+            }
           },
           "404": {
             "description": "User not found"
@@ -1401,7 +1679,30 @@
         ],
         "responses": {
           "200": {
-            "description": "List of requests"
+            "description": "List of requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Requests retrieved"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AccessRequest"
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -1442,7 +1743,27 @@
         },
         "responses": {
           "200": {
-            "description": "Request updated"
+            "description": "Request updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Request approved"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AccessRequest"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -1461,7 +1782,45 @@
         ],
         "responses": {
           "200": {
-            "description": "List of accessible clients"
+            "description": "List of accessible clients",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Accessible clients retrieved"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "allOf": [
+                          {
+                            "$ref": "#/components/schemas/User"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "email": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -1490,7 +1849,773 @@
         ],
         "responses": {
           "200": {
-            "description": "List of client wallets"
+            "description": "List of client wallets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Client wallets retrieved"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Wallet"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/client/score/history": {
+      "get": {
+        "summary": "Get credit score history (Client)",
+        "description": "Retrieves the current score and historical Mosaic scoring records for the authenticated client's connected wallets.\n\n- **Client Only**: Restricted to users with the Client role.\n- **Supported Scoring Networks**: `ethereum` and `base`.\n- **Auto Refresh**: Stored scores older than 4 hours are recalculated before history is returned.\n- Use `walletId=all` or omit `walletId` to return history for all connected wallets.\n- Unsupported wallets are returned with `scoreStatus: unsupported`.\n",
+        "tags": [
+          "Credit Scores"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "walletId",
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "description": "Optional Mosaic wallet ID. Omit this value or pass `all` to return all connected wallets."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Credit score history retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Credit score history retrieved"
+                    },
+                    "data": {
+                      "oneOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/CreditScore"
+                          }
+                        },
+                        {
+                          "$ref": "#/components/schemas/CreditScore"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "example": {
+                  "status": "success",
+                  "message": "Credit score history retrieved",
+                  "data": [
+                    {
+                      "walletId": {
+                        "id": "68227df95dc7c83f0867e9a1",
+                        "address": "0x8ba1f109551bd432803012645ac136ddd64dba72",
+                        "chain": "ethereum",
+                        "nickname": "Main Wallet"
+                      },
+                      "scoreStatus": "available",
+                      "score": 73,
+                      "breakdown": {
+                        "walletAge": 12,
+                        "activity": 8,
+                        "recency": 10,
+                        "counterpartyDiversity": 8,
+                        "ethVolume": 12,
+                        "stablecoinVolume": 8,
+                        "balanceFlow": 7,
+                        "consistency": 7,
+                        "behavior": 6,
+                        "riskPenalties": 5
+                      },
+                      "provider": "mosaic",
+                      "lastUpdated": "2026-05-13T08:15:24.000Z",
+                      "history": [
+                        {
+                          "score": 68,
+                          "timestamp": "2026-05-10T08:15:24.000Z",
+                          "provider": "mosaic",
+                          "breakdown": {
+                            "walletAge": 12,
+                            "activity": 6,
+                            "recency": 7,
+                            "counterpartyDiversity": 8,
+                            "ethVolume": 10,
+                            "stablecoinVolume": 8,
+                            "balanceFlow": 7,
+                            "consistency": 6,
+                            "behavior": 6,
+                            "riskPenalties": 4
+                          },
+                          "grade": "C",
+                          "riskTier": "High Risk"
+                        },
+                        {
+                          "score": 73,
+                          "timestamp": "2026-05-13T08:15:24.000Z",
+                          "provider": "mosaic",
+                          "breakdown": {
+                            "walletAge": 12,
+                            "activity": 8,
+                            "recency": 10,
+                            "counterpartyDiversity": 8,
+                            "ethVolume": 12,
+                            "stablecoinVolume": 8,
+                            "balanceFlow": 7,
+                            "consistency": 7,
+                            "behavior": 6,
+                            "riskPenalties": 5
+                          },
+                          "grade": "B",
+                          "riskTier": "Medium Risk"
+                        }
+                      ],
+                      "grade": "B",
+                      "riskTier": "Medium Risk",
+                      "maxScore": 120,
+                      "penalties": [
+                        "No stablecoin activity"
+                      ],
+                      "reasoning": [
+                        "Wallet age score: +12",
+                        "Activity score: +8"
+                      ],
+                      "positivePoints": 78,
+                      "penaltyPoints": 5,
+                      "algorithmVersion": "mosaic-v1"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Wallet not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/v1/institution/score/history": {
+      "get": {
+        "summary": "Get credit score history (Institution)",
+        "description": "Retrieves the current score and historical Mosaic scoring records for a specific client wallet after access approval.\n\n- **Institution Only**: Restricted to users with the Institution role.\n- **Permission Check**: Verifies that an `APPROVED` access request exists.\n- **Supported Scoring Networks**: `ethereum` and `base`.\n- **Auto Refresh**: Stored scores older than 4 hours are recalculated before history is returned.\n- Requires the target client's `walletId` query parameter.\n",
+        "tags": [
+          "Credit Scores"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "walletId",
+            "schema": {
+              "type": "string"
+            },
+            "description": "The ID of the wallet to fetch history for."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Credit score history retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Credit score history retrieved"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CreditScore"
+                    }
+                  }
+                },
+                "example": {
+                  "status": "success",
+                  "message": "Credit score history retrieved",
+                  "data": {
+                    "walletId": {
+                      "id": "68227df95dc7c83f0867e9a1",
+                      "address": "0x8ba1f109551bd432803012645ac136ddd64dba72",
+                      "chain": "ethereum",
+                      "nickname": "Client Main Wallet"
+                    },
+                    "scoreStatus": "available",
+                    "score": 73,
+                    "breakdown": {
+                      "walletAge": 12,
+                      "activity": 8,
+                      "recency": 10,
+                      "counterpartyDiversity": 8,
+                      "ethVolume": 12,
+                      "stablecoinVolume": 8,
+                      "balanceFlow": 7,
+                      "consistency": 7,
+                      "behavior": 6,
+                      "riskPenalties": 5
+                    },
+                    "provider": "mosaic",
+                    "lastUpdated": "2026-05-13T08:15:24.000Z",
+                    "history": [
+                      {
+                        "score": 68,
+                        "timestamp": "2026-05-10T08:15:24.000Z",
+                        "provider": "mosaic",
+                        "breakdown": {
+                          "walletAge": 12,
+                          "activity": 6,
+                          "recency": 7,
+                          "counterpartyDiversity": 8,
+                          "ethVolume": 10,
+                          "stablecoinVolume": 8,
+                          "balanceFlow": 7,
+                          "consistency": 6,
+                          "behavior": 6,
+                          "riskPenalties": 4
+                        },
+                        "grade": "C",
+                        "riskTier": "High Risk"
+                      }
+                    ],
+                    "grade": "B",
+                    "riskTier": "Medium Risk",
+                    "maxScore": 120,
+                    "penalties": [
+                      "No stablecoin activity"
+                    ],
+                    "reasoning": [
+                      "Wallet age score: +12",
+                      "Activity score: +8"
+                    ],
+                    "positivePoints": 78,
+                    "penaltyPoints": 5,
+                    "algorithmVersion": "mosaic-v1"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid walletId query parameter"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Forbidden (No access or wrong role)"
+          },
+          "404": {
+            "description": "Wallet not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/v1/institution/score/batch-check": {
+      "post": {
+        "summary": "Batch check credit scores via CSV (Institution)",
+        "description": "Allows institutions to upload a CSV file and score multiple wallets in one request.\n\n- **Institution Only**: Restricted to users with the Institution role.\n- **CSV Format**: Must contain a header row with `address`. Optional `chain` defaults to `ethereum`.\n- **Supported Scoring Networks**: `ethereum` and `base`.\n- **Stored Wallets**: Existing Mosaic wallets are looked up first and refreshed when their cached score is stale.\n- **Ad-hoc Wallets**: Unknown wallets are analyzed directly and persisted as score history.\n- Unsupported networks are returned as row-level messages in the response.\n",
+        "tags": [
+          "Credit Scores"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "CSV file to upload. Expected columns are `address` and optional `chain`."
+                  }
+                }
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "text/csv"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Batch results processed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Batch results processed successfully"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/BatchCreditScoreResult"
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "status": "success",
+                  "message": "Batch results processed successfully",
+                  "data": [
+                    {
+                      "address": "0x8ba1f109551bd432803012645ac136ddd64dba72",
+                      "chain": "ethereum",
+                      "found": true,
+                      "score": 73,
+                      "breakdown": {
+                        "walletAge": 12,
+                        "activity": 8,
+                        "recency": 10,
+                        "counterpartyDiversity": 8,
+                        "ethVolume": 12,
+                        "stablecoinVolume": 8,
+                        "balanceFlow": 7,
+                        "consistency": 7,
+                        "behavior": 6,
+                        "riskPenalties": 5
+                      },
+                      "grade": "B",
+                      "riskTier": "Medium Risk",
+                      "lastUpdated": "2026-05-13T08:15:24.000Z",
+                      "message": "Score loaded for wallet in Mosaic"
+                    },
+                    {
+                      "address": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+                      "chain": "base",
+                      "found": false,
+                      "score": 66,
+                      "breakdown": {
+                        "walletAge": 8,
+                        "activity": 8,
+                        "recency": 10,
+                        "counterpartyDiversity": 4,
+                        "ethVolume": 12,
+                        "stablecoinVolume": 8,
+                        "balanceFlow": 7,
+                        "consistency": 4,
+                        "behavior": 8,
+                        "riskPenalties": 3
+                      },
+                      "grade": "C",
+                      "riskTier": "High Risk",
+                      "lastUpdated": "2026-05-13T08:16:10.000Z",
+                      "message": "Ad-hoc score calculated (Wallet not in Mosaic)"
+                    },
+                    {
+                      "address": "TXYZ123exampleunsupported",
+                      "chain": "tron",
+                      "found": false,
+                      "score": null,
+                      "breakdown": null,
+                      "message": "Unsupported network \"tron\". Mosaic credit scoring currently supports ethereum and base only."
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request (No file or parse error)"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Institution access required"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/settings": {
+      "post": {
+        "summary": "Create a new setting (Admin)",
+        "description": "Creates a new system setting with a label and value.\n\n- **Admin Only**: Restricted to users with the Admin role.\n",
+        "tags": [
+          "Settings"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "label",
+                  "value"
+                ],
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Setting created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Setting created"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SiteSettings"
+                    }
+                  }
+                },
+                "example": {
+                  "status": "success",
+                  "message": "Setting created",
+                  "data": {
+                    "_id": "65c4b...e1",
+                    "label": "allowSignup",
+                    "value": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Setting already exists"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/v1/client/settings": {
+      "get": {
+        "summary": "Get all settings (All)",
+        "tags": [
+          "Settings"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Settings retrieved"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SiteSettings"
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "status": "success",
+                  "message": "Settings retrieved",
+                  "data": [
+                    {
+                      "_id": "65c4b...e1",
+                      "label": "allowSignup",
+                      "value": true
+                    },
+                    {
+                      "_id": "65c4b...e2",
+                      "label": "maintenanceMode",
+                      "value": false
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/client/settings/{label}": {
+      "get": {
+        "summary": "Get a specific setting (All)",
+        "tags": [
+          "Settings"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "label",
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "description": "The setting label"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The setting value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Setting retrieved"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SiteSettings"
+                    }
+                  }
+                },
+                "example": {
+                  "status": "success",
+                  "message": "Setting retrieved",
+                  "data": {
+                    "_id": "65c4b...e1",
+                    "label": "allowSignup",
+                    "value": true
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Setting not found"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/settings/{label}": {
+      "put": {
+        "summary": "Update a setting (Admin)",
+        "description": "Updates the value of a specific system setting.\n\n- **Admin Only**: Restricted to users with the Admin role.\n",
+        "tags": [
+          "Settings"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "label",
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "description": "The setting label"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "object",
+                    "description": "The new value for the setting"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated setting",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Setting updated"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SiteSettings"
+                    }
+                  }
+                },
+                "example": {
+                  "status": "success",
+                  "message": "Setting updated",
+                  "data": {
+                    "_id": "65c4b...e1",
+                    "label": "allowSignup",
+                    "value": false
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Setting not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a setting (Admin)",
+        "description": "Deletes a specific system setting.\n\n- **Admin Only**: Restricted to users with the Admin role.\n",
+        "tags": [
+          "Settings"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "label",
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "description": "The setting label"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Setting deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Setting deleted successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "nullable": true,
+                      "example": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Setting not found"
+          },
+          "500": {
+            "description": "Server error"
           }
         }
       }
@@ -1500,7 +2625,7 @@
         "summary": "Get user subscription (Client)",
         "description": "Retrieves the current subscription plan for the authenticated user.\n",
         "tags": [
-          "Users"
+          "Client"
         ],
         "security": [
           {
@@ -1560,9 +2685,9 @@
       },
       "post": {
         "summary": "Update user subscription (Client)",
-        "description": "Updates the subscription plan for the authenticated user.\n- **plan**: 'free' or 'pro'\n",
+        "description": "Updates the subscription plan for the authenticated user.\n- **planId**: 'free' or 'pro'\n",
         "tags": [
-          "Users"
+          "Client"
         ],
         "security": [
           {
@@ -1576,10 +2701,10 @@
               "schema": {
                 "type": "object",
                 "required": [
-                  "plan"
+                  "planId"
                 ],
                 "properties": {
-                  "plan": {
+                  "planId": {
                     "type": "string",
                     "enum": [
                       "free",
@@ -1742,7 +2867,7 @@
         "summary": "Delete user (Admin)",
         "description": "Permanently deletes a user account.\n\n- **Admin Only**: Restricted to users with the Admin role.\n- **Irreversible**: This action cannot be undone.\n- Requires the `id` of the user to be passed as a query parameter.\n",
         "tags": [
-          "Users"
+          "Admin"
         ],
         "security": [
           {
@@ -2024,7 +3149,7 @@
         "summary": "Get all users (Admin)",
         "description": "Retrieves a paginated list of all registered users.\n\n- **Admin Only**: Restricted to users with the Admin role.\n- **Pagination**: Supports `page` and `limit` query parameters.\n- Returns total count for frontend pagination.\n",
         "tags": [
-          "Users"
+          "Admin"
         ],
         "security": [
           {
@@ -2093,7 +3218,7 @@
         "summary": "Search for a user by email or id (Admin)",
         "description": "Searches for a specific user using their Email or User ID.\n\n- **Admin Only**: Restricted to users with the Admin role.\n- **Search Type**: Must specify `type` as either 'email' or 'id'.\n- **Term**: The actual email address or ID string to search for.\n- Returns a single user object if found.\n",
         "tags": [
-          "Users"
+          "Admin"
         ],
         "security": [
           {
@@ -2162,7 +3287,7 @@
         "summary": "Toggle user activation (Admin)",
         "description": "Activates or deactivates a user account.\n\n- **Admin Only**: Restricted to users with the Admin role.\n- **Behavior**: Deactivated users may be blocked from logging in or accessing certain features.\n- Requires `isActive` boolean in the request body.\n",
         "tags": [
-          "Users"
+          "Admin"
         ],
         "security": [
           {
@@ -2365,6 +3490,149 @@
           }
         }
       },
+      "CreditScore": {
+        "type": "object",
+        "properties": {
+          "walletId": {
+            "type": "string",
+            "description": "ID of the wallet",
+            "$ref": "#/components/schemas/CreditScoreWalletReference"
+          },
+          "score": {
+            "type": "number",
+            "description": "Current credit score",
+            "nullable": true,
+            "example": 73
+          },
+          "breakdown": {
+            "type": "object",
+            "properties": {
+              "age": {
+                "type": "number"
+              },
+              "consistency": {
+                "type": "number"
+              },
+              "balance": {
+                "type": "number"
+              },
+              "flow": {
+                "type": "number"
+              },
+              "penalty": {
+                "type": "number"
+              }
+            },
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CreditScoreBreakdown"
+              }
+            ],
+            "nullable": true
+          },
+          "provider": {
+            "type": "string",
+            "example": "mosaic"
+          },
+          "lastUpdated": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "When this score was last analyzed or refreshed.",
+            "example": "2026-05-13T08:15:24.000Z"
+          },
+          "history": {
+            "type": "array",
+            "description": "Historical score records",
+            "items": {
+              "type": "object",
+              "properties": {
+                "score": {
+                  "type": "number"
+                },
+                "timestamp": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "provider": {
+                  "type": "string"
+                }
+              },
+              "$ref": "#/components/schemas/CreditScoreHistoryEntry"
+            }
+          },
+          "_id": {
+            "type": "string",
+            "description": "Present when the score was loaded from persisted score history."
+          },
+          "scoreStatus": {
+            "type": "string",
+            "description": "Availability of the score for the requested wallet.",
+            "enum": [
+              "available",
+              "unsupported",
+              "error"
+            ],
+            "example": "available"
+          },
+          "grade": {
+            "type": "string",
+            "nullable": true,
+            "example": "B"
+          },
+          "riskTier": {
+            "type": "string",
+            "nullable": true,
+            "example": "Medium Risk"
+          },
+          "maxScore": {
+            "type": "number",
+            "nullable": true,
+            "example": 120
+          },
+          "penalties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "No stablecoin activity"
+            ]
+          },
+          "reasoning": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "Wallet age score: +12",
+              "Activity score: +8"
+            ]
+          },
+          "positivePoints": {
+            "type": "number",
+            "nullable": true,
+            "example": 78
+          },
+          "penaltyPoints": {
+            "type": "number",
+            "nullable": true,
+            "example": 5
+          },
+          "algorithmVersion": {
+            "type": "string",
+            "nullable": true,
+            "example": "mosaic-v1"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true,
+            "description": "Returned when the score is unsupported or an error occurs.",
+            "example": "Unsupported network \"tron\". Mosaic credit scoring currently supports ethereum and base only."
+          }
+        },
+        "description": "Wallet score response returned by the Mosaic scoring engine."
+      },
       "User": {
         "type": "object",
         "properties": {
@@ -2428,52 +3696,206 @@
           }
         }
       },
-      "CreditScore": {
+      "CreditScoreWalletReference": {
         "type": "object",
         "properties": {
-          "_id": {
-            "type": "string"
+          "id": {
+            "type": "string",
+            "description": "Mosaic wallet ID when the wallet is stored in the database.",
+            "example": "68227df95dc7c83f0867e9a1"
           },
-          "walletId": {
-            "type": "object",
-            "properties": {
-              "address": {
-                "type": "string"
-              },
-              "chain": {
-                "type": "string"
-              },
-              "nickname": {
-                "type": "string"
-              }
-            }
+          "address": {
+            "type": "string",
+            "description": "Wallet address being scored.",
+            "example": "0x8ba1f109551bd432803012645ac136ddd64dba72"
           },
+          "chain": {
+            "type": "string",
+            "description": "Wallet network as stored by Mosaic.",
+            "example": "ethereum"
+          },
+          "nickname": {
+            "type": "string",
+            "description": "Optional wallet nickname set by the client.",
+            "example": "Main Wallet"
+          }
+        }
+      },
+      "CreditScoreBreakdown": {
+        "type": "object",
+        "description": "Detailed factor breakdown for the Mosaic scoring engine. `riskPenalties` is subtracted from the positive factors.",
+        "properties": {
+          "walletAge": {
+            "type": "number",
+            "example": 12
+          },
+          "activity": {
+            "type": "number",
+            "example": 8
+          },
+          "recency": {
+            "type": "number",
+            "example": 10
+          },
+          "counterpartyDiversity": {
+            "type": "number",
+            "example": 8
+          },
+          "ethVolume": {
+            "type": "number",
+            "example": 12
+          },
+          "stablecoinVolume": {
+            "type": "number",
+            "example": 8
+          },
+          "balanceFlow": {
+            "type": "number",
+            "example": 7
+          },
+          "consistency": {
+            "type": "number",
+            "example": 7
+          },
+          "behavior": {
+            "type": "number",
+            "example": 6
+          },
+          "riskPenalties": {
+            "type": "number",
+            "example": 5
+          }
+        }
+      },
+      "CreditScoreHistoryEntry": {
+        "type": "object",
+        "properties": {
           "score": {
-            "type": "integer"
+            "type": "number",
+            "example": 73
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-05-13T08:15:24.000Z"
+          },
+          "provider": {
+            "type": "string",
+            "example": "mosaic"
           },
           "breakdown": {
-            "type": "object",
-            "properties": {
-              "age": {
-                "type": "number"
-              },
-              "consistency": {
-                "type": "number"
-              },
-              "balance": {
-                "type": "number"
-              },
-              "flow": {
-                "type": "number"
-              },
-              "penalty": {
-                "type": "number"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CreditScoreBreakdown"
               }
+            ],
+            "nullable": true
+          },
+          "grade": {
+            "type": "string",
+            "nullable": true,
+            "example": "B"
+          },
+          "riskTier": {
+            "type": "string",
+            "nullable": true,
+            "example": "Medium Risk"
+          }
+        }
+      },
+      "AdHocCreditScoreResponse": {
+        "type": "object",
+        "properties": {
+          "score": {
+            "type": "number",
+            "example": 73
+          },
+          "breakdown": {
+            "$ref": "#/components/schemas/CreditScoreBreakdown"
+          },
+          "grade": {
+            "type": "string",
+            "example": "B"
+          },
+          "riskTier": {
+            "type": "string",
+            "example": "Medium Risk"
+          },
+          "maxScore": {
+            "type": "number",
+            "example": 120
+          },
+          "penalties": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           },
-          "updatedAt": {
+          "reasoning": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "provider": {
             "type": "string",
-            "format": "date-time"
+            "example": "mosaic"
+          },
+          "lastUpdated": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-05-13T08:15:24.000Z"
+          }
+        }
+      },
+      "BatchCreditScoreResult": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string",
+            "example": "0x8ba1f109551bd432803012645ac136ddd64dba72"
+          },
+          "chain": {
+            "type": "string",
+            "example": "ethereum"
+          },
+          "found": {
+            "type": "boolean",
+            "description": "Indicates whether the wallet was already registered in Mosaic.",
+            "example": true
+          },
+          "score": {
+            "type": "number",
+            "nullable": true,
+            "example": 73
+          },
+          "breakdown": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CreditScoreBreakdown"
+              }
+            ],
+            "nullable": true
+          },
+          "grade": {
+            "type": "string",
+            "nullable": true,
+            "example": "B"
+          },
+          "riskTier": {
+            "type": "string",
+            "nullable": true,
+            "example": "Medium Risk"
+          },
+          "lastUpdated": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2026-05-13T08:15:24.000Z"
+          },
+          "message": {
+            "type": "string",
+            "example": "Score loaded for wallet in Mosaic"
           }
         }
       },
