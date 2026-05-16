@@ -1,5 +1,7 @@
+import dotenv from 'dotenv'
+dotenv.config();
 
-const BASE_URL = "http://localhost:9002";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://mosaicafrica.xyz";
 
 interface FetchOptions extends RequestInit {
   params?: Record<string, string>;
