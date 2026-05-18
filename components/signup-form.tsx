@@ -18,10 +18,15 @@ export function SignupForm({
   className,
   ...props
 }: React.ComponentProps<"form">) {
-  const { registerUser, registerInstitution } = useAuth();
+  const { registerUser, registerInstitution, verifySignupOtp } = useAuth();
   const [role, setRole] = useState<string>("user");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [otpStep, setOtpStep] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpMessage, setOtpMessage] = useState<string | null>(null);
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -38,7 +43,11 @@ export function SignupForm({
             institutionName: data.institutionName || data.name // Fallback if not provided
         });
       } else {
-        await registerUser(data);
+        const response = await registerUser(data);
+        setPendingUserId(response.userId);
+        setPendingEmail(String(data.email || ""));
+        setOtpMessage(response.message);
+        setOtpStep(true);
       }
     } catch (err: any) {
       setError(err.message || "Registration failed. Please try again.");
@@ -46,6 +55,95 @@ export function SignupForm({
       setLoading(false);
     }
   };
+
+  const handleVerifyOtp = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!pendingUserId) {
+      setError("Missing signup session. Please sign up again.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await verifySignupOtp({
+        userId: pendingUserId,
+        otp,
+      });
+    } catch (err: any) {
+      setError(err.message || "OTP verification failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (otpStep) {
+    return (
+      <form className={cn("flex flex-col gap-6", className)} onSubmit={handleVerifyOtp} {...props}>
+        <FieldGroup>
+          <div className="flex flex-col items-center gap-1 text-center">
+            <h1 className="text-2xl font-bold">Verify Your Email</h1>
+            <p className="text-muted-foreground text-sm text-balance">
+              Enter the 6-digit code sent to {pendingEmail}.
+            </p>
+          </div>
+
+          {otpMessage && (
+            <div className="bg-[#00FF00]/10 border border-[#00FF00]/40 text-[#00FF00] text-sm p-3 rounded-lg text-center">
+              {otpMessage}
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/50 text-red-500 text-sm p-3 rounded-lg text-center">
+              {error}
+            </div>
+          )}
+
+          <Field>
+            <FieldLabel htmlFor="otp">Verification Code</FieldLabel>
+            <Input
+              id="otp"
+              name="otp"
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              placeholder="123456"
+              autoComplete="one-time-code"
+              value={otp}
+              onChange={(event) => setOtp(event.target.value.replace(/\D/g, ""))}
+              required
+            />
+            <FieldDescription>
+              The code expires in 10 minutes.
+            </FieldDescription>
+          </Field>
+
+          <Field>
+            <Button type="submit" disabled={loading || otp.length !== 6}>
+              {loading ? "Verifying..." : "Verify Email"}
+            </Button>
+          </Field>
+
+          <Field>
+            <button
+              type="button"
+              onClick={() => {
+                setOtpStep(false);
+                setOtp("");
+                setError(null);
+              }}
+              className="text-center text-sm underline underline-offset-4"
+            >
+              Back to sign up
+            </button>
+          </Field>
+        </FieldGroup>
+      </form>
+    );
+  }
 
   return (
     <form className={cn("flex flex-col gap-6", className)} onSubmit={handleSubmit} {...props}>
@@ -98,13 +196,13 @@ export function SignupForm({
           <FieldLabel htmlFor="password">Password</FieldLabel>
           <Input id="password" name="password" type="password" required />
           <FieldDescription>
-            Must be at least 8 characters long.
+            Must be at least 6 characters long.
           </FieldDescription>
         </Field>
 
         <Field>
           <Button type="submit" disabled={loading}>
-            {loading ? "Creating Account..." : "Create Account"}
+            {loading ? "Creating Account..." : "Continue"}
           </Button>
         </Field>
 
@@ -117,4 +215,3 @@ export function SignupForm({
     </form>
   )
 }
-

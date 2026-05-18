@@ -8,8 +8,12 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (data: any) => Promise<void>;
-  registerUser: (data: any) => Promise<void>;
+  registerUser: (data: any) => Promise<{ userId: string; message: string }>;
+  verifySignupOtp: (data: { userId: string; otp: string }) => Promise<void>;
   registerInstitution: (data: any) => Promise<void>;
+  forgotPassword: (data: { email: string }) => Promise<string>;
+  verifyResetOtp: (data: { email: string; otp: string }) => Promise<{ resetToken: string; message: string }>;
+  resetPassword: (data: { resetToken: string; newPassword: string }) => Promise<string>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -52,6 +56,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const registerUser = async (data: any) => {
     const response = await authService.registerUser(data);
+    return {
+      userId: response.data.userId,
+      message: response.message,
+    };
+  };
+
+  const verifySignupOtp = async (data: { userId: string; otp: string }) => {
+    const response = await authService.verifyEmailOtp(data);
     setUser(response.data.user);
     router.push("/dashboard/user");
   };
@@ -63,6 +75,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/login/institution?registered=true");
   };
 
+  const forgotPassword = async (data: { email: string }) => {
+    const response = await authService.forgotPassword(data);
+    return response.message;
+  };
+
+  const verifyResetOtp = async (data: { email: string; otp: string }) => {
+    const response = await authService.verifyResetOtp(data);
+    return {
+      resetToken: response.data.resetToken,
+      message: response.message,
+    };
+  };
+
+  const resetPassword = async (data: { resetToken: string; newPassword: string }) => {
+    const response = await authService.resetPassword(data);
+    return response.message;
+  };
+
   const logout = async () => {
     await authService.logout();
     setUser(null);
@@ -70,7 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, registerUser, registerInstitution, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, registerUser, verifySignupOtp, registerInstitution, forgotPassword, verifyResetOtp, resetPassword, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

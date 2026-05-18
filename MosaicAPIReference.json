@@ -2289,6 +2289,90 @@
         }
       }
     },
+    "/api/v1/notifications/subscribe": {
+      "post": {
+        "summary": "Subscribe to Mosaic Africa notifications (Public)",
+        "description": "Adds or reactivates an email notification subscriber.\n\n- Public endpoint.\n- Accepts a single email address.\n- Returns `Already subscribed` when the email is already active.\n",
+        "tags": [
+          "Notifications"
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Subscription handled successfully"
+          },
+          "400": {
+            "description": "Invalid email"
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/send": {
+      "post": {
+        "summary": "Send notification email to all subscribers (Admin)",
+        "description": "Sends a bulk email notification to all active subscribers.\n\n- **Admin Only**: Requires a valid admin JWT.\n- Sends recipients via BCC so subscriber emails are not exposed.\n- Rate limited to one send every 5 minutes.\n",
+        "tags": [
+          "Notifications"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "subject",
+                  "htmlContent"
+                ],
+                "properties": {
+                  "subject": {
+                    "type": "string"
+                  },
+                  "htmlContent": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Notifications sent"
+          },
+          "403": {
+            "description": "Admin access required"
+          },
+          "429": {
+            "description": "Too many notification sends"
+          }
+        }
+      }
+    },
     "/api/v1/admin/settings": {
       "post": {
         "summary": "Create a new setting (Admin)",
@@ -2779,11 +2863,12 @@
     },
     "/api/v1/user": {
       "post": {
-        "summary": "Create a new user (Client)",
-        "description": "Registers a new user with the Client role.\n\n- Validates that email, name, and password are provided.\n- Checks if the email is already in use.\n- Hashes the password before storage.\n- Automatically logs the user in upon successful registration (Sets cookies).\n- Assigns the default free plan to the user.\n",
+        "summary": "Sign up user and send verification OTP (Public)",
+        "description": "Registers a new client account and sends an email verification OTP.\n\n- Creates the user with `UNVERIFIED` status.\n- Generates a 6-digit OTP valid for 10 minutes.\n- Uses the existing Mosaic Africa signup OTP email template.\n- Returns the new `userId` so the frontend can complete verification.\n",
         "tags": [
           "Users"
         ],
+        "security": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -2814,25 +2899,25 @@
         },
         "responses": {
           "201": {
-            "description": "Account created successfully",
+            "description": "Verification code sent successfully",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
-                      "type": "string",
-                      "example": "success"
+                    "success": {
+                      "type": "boolean",
+                      "example": true
                     },
                     "message": {
                       "type": "string",
-                      "example": "Account created successfully"
+                      "example": "Verification code sent to your email"
                     },
                     "data": {
                       "type": "object",
                       "properties": {
-                        "user": {
-                          "$ref": "#/components/schemas/User"
+                        "userId": {
+                          "type": "string"
                         }
                       }
                     }
@@ -2842,24 +2927,13 @@
             }
           },
           "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
+            "description": "Bad request"
+          },
+          "429": {
+            "description": "Too many OTP requests"
           },
           "500": {
-            "description": "Server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
+            "description": "Server error"
           }
         }
       },
@@ -3036,15 +3110,12 @@
     },
     "/api/v1/user/login": {
       "post": {
-        "summary": "Login a user",
+        "summary": "Login a user (Public)",
+        "description": "Authenticates an existing user and issues session cookies.\n\n- Requires the account to be verified.\n- Returns the authenticated user payload and access token.\n",
         "tags": [
           "Users"
         ],
-        "security": [
-          {
-            "adminAuth": []
-          }
-        ],
+        "security": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -3077,9 +3148,9 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
-                      "type": "string",
-                      "example": "success"
+                    "success": {
+                      "type": "boolean",
+                      "example": true
                     },
                     "message": {
                       "type": "string",
@@ -3092,7 +3163,7 @@
                           "type": "object"
                         },
                         "token": {
-                          "type": "object"
+                          "type": "string"
                         }
                       }
                     }
@@ -3104,8 +3175,178 @@
           "400": {
             "description": "Bad request"
           },
+          "403": {
+            "description": "Email not verified or account disabled"
+          },
           "500": {
             "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/v1/user/verify-email": {
+      "post": {
+        "summary": "Verify signup email OTP (Public)",
+        "description": "Verifies the signup OTP for an unverified user.\n\n- Activates the account on success.\n- Sends the Mosaic Africa welcome email.\n- Returns an access token and authenticated user payload.\n",
+        "tags": [
+          "Users"
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "userId",
+                  "otp"
+                ],
+                "properties": {
+                  "userId": {
+                    "type": "string"
+                  },
+                  "otp": {
+                    "type": "string",
+                    "example": "123456"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email verified successfully"
+          },
+          "400": {
+            "description": "Invalid or expired OTP"
+          },
+          "429": {
+            "description": "Maximum OTP attempts exceeded"
+          }
+        }
+      }
+    },
+    "/api/v1/user/forgot-password": {
+      "post": {
+        "summary": "Send password reset OTP (Public)",
+        "description": "Starts the forgot-password flow for a user email.\n\n- Returns a generic success response even if the email does not exist.\n- Sends a 6-digit reset OTP when the account is found.\n",
+        "tags": [
+          "Users"
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reset flow response sent"
+          },
+          "429": {
+            "description": "Too many OTP requests"
+          }
+        }
+      }
+    },
+    "/api/v1/user/verify-reset-otp": {
+      "post": {
+        "summary": "Verify password reset OTP (Public)",
+        "description": "Validates a forgot-password OTP and returns a short-lived reset token.\n",
+        "tags": [
+          "Users"
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "otp"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "otp": {
+                    "type": "string",
+                    "example": "123456"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reset token issued"
+          },
+          "400": {
+            "description": "Invalid or expired OTP"
+          },
+          "429": {
+            "description": "Maximum OTP attempts exceeded"
+          }
+        }
+      }
+    },
+    "/api/v1/user/reset-password": {
+      "post": {
+        "summary": "Reset password with reset token (Public)",
+        "description": "Resets the user password using a verified reset token.\n\n- Hashes and stores the new password.\n- Sends a password updated confirmation email.\n",
+        "tags": [
+          "Users"
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "resetToken",
+                  "newPassword"
+                ],
+                "properties": {
+                  "resetToken": {
+                    "type": "string"
+                  },
+                  "newPassword": {
+                    "type": "string",
+                    "format": "password"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset successfully"
+          },
+          "400": {
+            "description": "Invalid or expired reset token"
           }
         }
       }
