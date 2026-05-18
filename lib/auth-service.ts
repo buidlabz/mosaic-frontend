@@ -1,8 +1,6 @@
 import { apiClient } from "./api-client";
 import {
   InstitutionSignupPayload,
-  toInstitutionSignupPayload,
-  toUserSignupPayload,
   UserSignupPayload,
 } from "./signup-payload";
 
@@ -20,6 +18,12 @@ export interface AuthResponse {
   status?: string;
   message: string;
   data: Record<string, unknown>;
+}
+
+export interface CurrentUserResponse extends AuthResponse {
+  data: {
+    user: User;
+  };
 }
 
 export interface SignupOtpResponse extends AuthResponse {
@@ -53,21 +57,17 @@ export interface VerifyResetOtpResponse extends AuthResponse {
 export type NotificationSubscribeResponse = AuthResponse;
 
 export const authService = {
-  async registerUser(data: Record<string, unknown>): Promise<SignupOtpResponse> {
-    const payload = toUserSignupPayload(data);
-
+  async registerUser(data: UserSignupPayload): Promise<SignupOtpResponse> {
     return apiClient<SignupOtpResponse>("/api/v1/user", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(data),
     });
   },
 
-  async registerInstitution(data: Record<string, unknown>): Promise<AuthResponse> {
-    const payload = toInstitutionSignupPayload(data);
-
+  async registerInstitution(data: InstitutionSignupPayload): Promise<AuthResponse> {
     return apiClient<AuthResponse>("/api/v1/institution/register", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(data),
     });
   },
 
@@ -119,8 +119,8 @@ export const authService = {
     });
   },
 
-  async getCurrentUser(): Promise<AuthResponse> {
-    return apiClient<AuthResponse>("/api/v1/user", {
+  async getCurrentUser(): Promise<CurrentUserResponse> {
+    return apiClient<CurrentUserResponse>("/api/v1/user", {
         method: "GET"
     });
   }
