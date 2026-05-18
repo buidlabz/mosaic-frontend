@@ -2,15 +2,21 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { authService, User } from "@/lib/auth-service";
+import {
+  authService,
+  InstitutionSignupPayload,
+  User,
+  UserSignupPayload,
+} from "@/lib/auth-service";
+import { clearAuthToken, storeAuthToken } from "@/lib/auth-session";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (data: any) => Promise<void>;
-  registerUser: (data: any) => Promise<{ userId: string; message: string }>;
+  login: (data: Record<string, unknown>) => Promise<void>;
+  registerUser: (data: UserSignupPayload) => Promise<{ userId: string; message: string }>;
   verifySignupOtp: (data: { userId: string; otp: string }) => Promise<void>;
-  registerInstitution: (data: any) => Promise<void>;
+  registerInstitution: (data: InstitutionSignupPayload) => Promise<void>;
   forgotPassword: (data: { email: string }) => Promise<string>;
   verifyResetOtp: (data: { email: string; otp: string }) => Promise<{ resetToken: string; message: string }>;
   resetPassword: (data: { resetToken: string; newPassword: string }) => Promise<string>;
@@ -31,7 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // We'll try to get the profile. If it fails, user is not logged in.
       const response = await authService.getCurrentUser();
       setUser(response.data.user);
-    } catch (err) {
+    } catch {
       setUser(null);
     } finally {
       setLoading(false);
@@ -39,12 +45,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Initial load - we'll just check if we can get the profile
-    refreshUser();
-  }, [refreshUser]);
+    let cancelled = false;
 
-  const login = async (data: any) => {
+    void (async () => {
+      try {
+        const response = await authService.getCurrentUser();
+        if (!cancelled) {
+          setUser(response.data.user);
+        }
+      } catch {
+        if (!cancelled) {
+          setUser(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const login = async (data: Record<string, unknown>) => {
     const response = await authService.login(data);
+    if (response.data.token) {
+      storeAuthToken(response.data.token);
+    }
     setUser(response.data.user);
     
     // Redirect based on role
@@ -54,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     else router.push("/dashboard/user");
   };
 
-  const registerUser = async (data: any) => {
+  const registerUser = async (data: UserSignupPayload) => {
     const response = await authService.registerUser(data);
     return {
       userId: response.data.userId,
@@ -64,11 +93,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const verifySignupOtp = async (data: { userId: string; otp: string }) => {
     const response = await authService.verifyEmailOtp(data);
+    if (response.data.token) {
+      storeAuthToken(response.data.token);
+    }
     setUser(response.data.user);
-    router.push("/dashboard/user");
   };
 
-  const registerInstitution = async (data: any) => {
+  const registerInstitution = async (data: InstitutionSignupPayload) => {
     await authService.registerInstitution(data);
     // Usually inst. registration leads to 'pending' state
     // We might want to show a success message or redirect to a 'waiting' page
@@ -95,6 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     await authService.logout();
+    clearAuthToken();
     setUser(null);
     router.push("/");
   };

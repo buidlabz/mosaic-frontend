@@ -1,4 +1,10 @@
 import { apiClient } from "./api-client";
+import {
+  InstitutionSignupPayload,
+  toInstitutionSignupPayload,
+  toUserSignupPayload,
+  UserSignupPayload,
+} from "./signup-payload";
 
 export interface User {
   _id: string;
@@ -13,7 +19,7 @@ export interface AuthResponse {
   success?: boolean;
   status?: string;
   message: string;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
 }
 
 export interface SignupOtpResponse extends AuthResponse {
@@ -36,7 +42,7 @@ export interface VerifyEmailResponse extends AuthResponse {
   };
 }
 
-export interface ForgotPasswordResponse extends AuthResponse {}
+export type ForgotPasswordResponse = AuthResponse;
 
 export interface VerifyResetOtpResponse extends AuthResponse {
   data: {
@@ -44,20 +50,24 @@ export interface VerifyResetOtpResponse extends AuthResponse {
   };
 }
 
-export interface NotificationSubscribeResponse extends AuthResponse {}
+export type NotificationSubscribeResponse = AuthResponse;
 
 export const authService = {
   async registerUser(data: Record<string, unknown>): Promise<SignupOtpResponse> {
+    const payload = toUserSignupPayload(data);
+
     return apiClient<SignupOtpResponse>("/api/v1/user", {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
   },
 
   async registerInstitution(data: Record<string, unknown>): Promise<AuthResponse> {
+    const payload = toInstitutionSignupPayload(data);
+
     return apiClient<AuthResponse>("/api/v1/institution/register", {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
   },
 
@@ -115,3 +125,5 @@ export const authService = {
     });
   }
 };
+
+export type { InstitutionSignupPayload, UserSignupPayload };
